@@ -1,6 +1,7 @@
 package main
 
 import (
+	"api/internal/infra/db"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -8,6 +9,12 @@ import (
 )
 
 func main() {
+	dbConn, err := db.ConnectDB()
+	if err != nil {
+		panic(err)
+	}
+	defer dbConn.Close()
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
