@@ -1,0 +1,79 @@
+version: "3"
+
+vars:
+  DB_URL: "postgres://postgres:postgres@db:5432/go-api?sslmode=disable"
+  NETWORK: "heroes-go_internal"
+
+tasks:
+  machine-start:
+    desc: Start Podman machine
+    cmds:
+      - podman machine start
+
+  machine-stop:
+    desc: Stop Podman machine
+    cmds:
+      - podman machine stop
+
+  machine-restart:
+    desc: Restart Podman machine
+    cmds:
+      - podman machine stop
+      - podman machine start
+
+  up:
+    desc: Start containers
+    cmds:
+      - podman compose up -d
+
+  down:
+    desc: Stop containers
+    cmds:
+      - podman compose down
+
+  restart:
+    desc: Restart containers
+    cmds:
+      - podman compose down
+      - podman compose up -d
+
+  logs:
+  desc: Show logs (use SERVICE=nome)
+  cmds:
+    - podman compose logs -f {{.SERVICE}}
+
+  ps:
+    desc: Show running containers
+    cmds:
+      - podman compose ps
+
+  migrate-up:
+    desc: Run migrations up
+    cmds:
+      - podman run --rm --network {{.NETWORK}} -v ${PWD}/internal/infra/db/migrations:/migrations:Z docker.io/migrate/migrate -path=/migrations -database "{{.DB_URL}}" up
+
+  migrate-down:
+    desc: Rollback last migration
+    cmds:
+      - podman run --rm --network {{.NETWORK}} -v ${PWD}/internal/infra/db/migrations:/migrations:Z docker.io/migrate/migrate -path=/migrations -database "{{.DB_URL}}" down 1
+
+  migrate-force:
+    desc: Force migration version (use VERSION=1)
+    cmds:
+      - podman run --rm --network {{.NETWORK}} -v ${PWD}/internal/infra/db/migrations:/migrations:Z docker.io/migrate/migrate -path=/migrations -database "{{.DB_URL}}" force {{.VERSION}}
+
+  migrate-version:
+    desc: Show current migration version
+    cmds:
+      - podman run --rm --network {{.NETWORK}} -v ${PWD}/internal/infra/db/migrations:/migrations:Z docker.io/migrate/migrate -path=/migrations -database "{{.DB_URL}}" version
+
+  migrate-create:
+    desc: Create new migration (use NAME=nome)
+    cmds:
+      - migrate create -ext sql -dir internal/infra/db/migrations -seq {{.NAME}}
+
+  db-reset:
+    desc: Reset database (DEV ONLY)
+    cmds:
+      - podman compose down -v
+      - podman compose up -d
