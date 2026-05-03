@@ -17,6 +17,8 @@ services:
     image: postgres:16-alpine
     container_name: go-db
     restart: unless-stopped
+    ports:
+    - "5432:5432"
     env_file:
       - .env
     volumes:
