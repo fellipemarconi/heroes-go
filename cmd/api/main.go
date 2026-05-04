@@ -1,24 +1,21 @@
 package main
 
 import (
-	"api/internal/infra/db"
+	dbconn "api/internal/infra/db"
+	sqlc "api/internal/infra/db/sqlc"
+	"api/internal/server"
 	"net/http"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
-	dbConn, err := db.ConnectDB()
+	pool, err := dbconn.ConnectDB()
 	if err != nil {
 		panic(err)
 	}
-	defer dbConn.Close()
+	defer pool.Close()
 
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("welcome"))
-	})
-	http.ListenAndServe(":8080", r)
+	queries := sqlc.New(pool)
+
+	r := server.NewRouter(queries)
+	http.ListenAndServe(":3000", r)
 }
