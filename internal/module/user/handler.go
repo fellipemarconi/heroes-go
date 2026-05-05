@@ -1,7 +1,7 @@
 package user
 
 import (
-	apierror "api/internal/shared"
+	"api/internal/pkg/apierror"
 	"encoding/json"
 	"net/http"
 )

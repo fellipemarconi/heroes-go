@@ -2,7 +2,7 @@ package user
 
 import (
 	sqlc "api/internal/infra/db/sqlc"
-	apierror "api/internal/shared"
+	"api/internal/pkg/apierror"
 	"context"
 	"net/http"
 
