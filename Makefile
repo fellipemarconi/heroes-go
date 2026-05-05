@@ -10,8 +10,7 @@ NAME ?=
         db-reset
 
 run:
-	go run cmd/api/main.go
-
+	air
 # --------------------
 # Docker service
 # --------------------
