@@ -1,6 +1,7 @@
 package user
 
 import (
+	apierror "api/internal/shared"
 	"encoding/json"
 	"net/http"
 )
@@ -17,16 +18,12 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var input CreateUserInput
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
+		apierror.Send(w, apierror.New(http.StatusBadRequest, "invalid request body"))
 		return
 	}
 
 	if err := h.service.CreateUser(r.Context(), &input); err != nil {
-		if err.Error() == "email already in use" {
-			http.Error(w, err.Error(), http.StatusConflict)
-			return
-		}
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		apierror.Send(w, err)
 		return
 	}
 

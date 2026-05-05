@@ -2,8 +2,9 @@ package user
 
 import (
 	sqlc "api/internal/infra/db/sqlc"
+	apierror "api/internal/shared"
 	"context"
-	"errors"
+	"net/http"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -30,7 +31,7 @@ func (s *UserService) CreateUser(ctx context.Context, input *CreateUserInput) er
 
 	existing, _ := s.queries.GetUserByEmail(ctx, input.Email)
 	if existing.ID.Valid {
-		return errors.New("email already in use")
+		return apierror.New(http.StatusConflict, "email is already used")
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
