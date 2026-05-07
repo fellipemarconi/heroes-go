@@ -77,3 +77,6 @@ show-optimize:
 
 fix-optimize:
 	fieldalignment -fix ./...
+
+vulnerabilities:
+	govulncheck ./...
