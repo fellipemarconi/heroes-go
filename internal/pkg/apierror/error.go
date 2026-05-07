@@ -9,9 +9,9 @@ import (
 )
 
 type APIError struct {
-	Code    int               `json:"-"`
-	Message string            `json:"message,omitempty"`
 	Errors  map[string]string `json:"errors,omitempty"`
+	Message string            `json:"message,omitempty"`
+	Code    int               `json:"-"`
 }
 
 func (e *APIError) Error() string { return e.Message }
