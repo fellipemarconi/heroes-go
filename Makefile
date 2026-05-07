@@ -71,3 +71,9 @@ migrate-create:
 db-reset:
 	docker compose down -v
 	docker compose up -d
+
+show-optimize:
+	fieldalignment ./...
+
+fix-optimize:
+	fieldalignment -fix ./...
