@@ -17,5 +17,8 @@ func main() {
 	queries := sqlc.New(pool)
 
 	r := server.NewRouter(queries)
-	http.ListenAndServe(":3000", r)
+	err = http.ListenAndServe(":3000", r)
+	if err != nil {
+		return
+	}
 }
