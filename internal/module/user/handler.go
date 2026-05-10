@@ -19,7 +19,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var input CreateUserInput
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		apierror.Send(w, apierror.New(http.StatusBadRequest, "invalid request body"))
+		apierror.Send(w, apierror.BadRequest(apierror.ErrInvalidBody.Error()))
 		return
 	}
 
@@ -35,7 +35,7 @@ func (h *Handler) SignInUser(w http.ResponseWriter, r *http.Request) {
 	var input SignInUserInput
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		apierror.Send(w, apierror.New(http.StatusBadRequest, "invalid request body"))
+		apierror.Send(w, apierror.BadRequest(apierror.ErrInvalidBody.Error()))
 		return
 	}
 
@@ -52,7 +52,7 @@ func (h *Handler) SignInUser(w http.ResponseWriter, r *http.Request) {
 		"token": token,
 	})
 	if err != nil {
-		apierror.Send(w, err)
+		apierror.Send(w, apierror.Internal(apierror.ErrInternalServer.Error()))
 		return
 	}
 }
@@ -73,7 +73,22 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(user)
 	if err != nil {
+		apierror.Send(w, apierror.Internal(apierror.ErrInternalServer.Error()))
+		return
+	}
+}
+
+func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	userId, err := ctx.GetUserIDCtx(r)
+	if err != nil {
 		apierror.Send(w, err)
 		return
 	}
+
+	if err = h.service.DeleteUser(r.Context(), userId); err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

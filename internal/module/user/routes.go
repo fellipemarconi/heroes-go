@@ -19,4 +19,5 @@ func RoutesUser(queries *sqlc.Queries, r chi.Router) {
 	handler := NewUserHandler(service)
 
 	r.Get("/api/user", handler.GetUser)
+	r.Delete("/api/user", handler.DeleteUser)
 }

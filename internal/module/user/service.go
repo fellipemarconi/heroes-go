@@ -6,7 +6,6 @@ import (
 	"api/internal/pkg/apierror"
 	"api/internal/pkg/types"
 	"context"
-	"net/http"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -28,17 +27,17 @@ func NewUserService(queries *sqlc.Queries) *Service {
 
 func (s *Service) CreateUser(ctx context.Context, input *CreateUserInput) error {
 	if err := s.validate.Struct(input); err != nil {
-		return err
+		return apierror.BadRequest(err.Error())
 	}
 
-	user, _ := s.queries.GetUserByEmail(ctx, input.Email)
-	if user.ID.Valid {
-		return apierror.New(http.StatusConflict, "email is already used")
+	_, err := s.queries.GetUserByEmail(ctx, input.Email)
+	if err == nil {
+		return apierror.Conflict(ErrEmailAlreadyUsed.Error())
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return err
+		return apierror.Internal(apierror.ErrInternalServer.Error())
 	}
 
 	_, err = s.queries.CreateUser(ctx, sqlc.CreateUserParams{
@@ -47,17 +46,21 @@ func (s *Service) CreateUser(ctx context.Context, input *CreateUserInput) error 
 		Name:         input.Name,
 		PasswordHash: string(hash),
 	})
-	return err
+	if err != nil {
+		return apierror.Internal(apierror.ErrInternalServer.Error())
+	}
+
+	return nil
 }
 
 func (s *Service) SignInUser(ctx context.Context, input *SignInUserInput) (string, error) {
 	if err := s.validate.Struct(input); err != nil {
-		return "", err
+		return "", apierror.BadRequest(err.Error())
 	}
 
 	user, err := s.queries.GetUserByEmail(ctx, input.Email)
 	if err != nil {
-		return "", apierror.New(http.StatusNotFound, "User not found")
+		return "", apierror.NotFound(ErrUserNotFound.Error())
 	}
 
 	err = bcrypt.CompareHashAndPassword(
@@ -66,7 +69,7 @@ func (s *Service) SignInUser(ctx context.Context, input *SignInUserInput) (strin
 	)
 
 	if err != nil {
-		return "", apierror.New(http.StatusUnauthorized, "invalid credentials")
+		return "", apierror.Unauthorized(apierror.ErrInvalidCredentials.Error())
 	}
 
 	_, token, err := auth.TokenAuth.Encode(map[string]interface{}{
@@ -74,7 +77,7 @@ func (s *Service) SignInUser(ctx context.Context, input *SignInUserInput) (strin
 	})
 
 	if err != nil {
-		return "", err
+		return "", apierror.Internal(apierror.ErrInternalServer.Error())
 	}
 
 	return token, nil
@@ -83,12 +86,12 @@ func (s *Service) SignInUser(ctx context.Context, input *SignInUserInput) (strin
 func (s *Service) GetUser(ctx context.Context, userId string) (*User, error) {
 	id, err := types.ParseUUID(userId)
 	if err != nil {
-		return nil, apierror.New(http.StatusBadRequest, "invalid user ID")
+		return nil, apierror.BadRequest(apierror.ErrInvalidID.Error())
 	}
 
 	user, err := s.queries.GetUserByID(ctx, id)
 	if err != nil {
-		return nil, apierror.New(http.StatusNotFound, "User not found")
+		return nil, apierror.NotFound(ErrUserNotFound.Error())
 	}
 
 	return &User{
@@ -97,4 +100,23 @@ func (s *Service) GetUser(ctx context.Context, userId string) (*User, error) {
 		Name:      user.Name,
 		CreatedAt: user.CreatedAt.Time,
 	}, nil
+}
+
+func (s *Service) DeleteUser(ctx context.Context, userId string) error {
+	id, err := types.ParseUUID(userId)
+	if err != nil {
+		return apierror.BadRequest(apierror.ErrInvalidID.Error())
+	}
+
+	_, err = s.queries.GetUserByID(ctx, id)
+	if err != nil {
+		return apierror.NotFound(ErrUserNotFound.Error())
+	}
+
+	err = s.queries.DeleteUser(ctx, id)
+	if err != nil {
+		return apierror.Internal(apierror.ErrInternalServer.Error())
+	}
+
+	return nil
 }

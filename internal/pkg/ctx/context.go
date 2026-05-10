@@ -1,7 +1,7 @@
 package ctx
 
 import (
-	"errors"
+	"api/internal/pkg/apierror"
 	"net/http"
 
 	"github.com/go-chi/jwtauth/v5"
@@ -12,7 +12,7 @@ func GetUserIDCtx(r *http.Request) (string, error) {
 
 	id, ok := claims["user_id"].(string)
 	if !ok {
-		return "", errors.New("invalid token claims")
+		return "", apierror.Internal(apierror.ErrInternalServer.Error())
 	}
 
 	return id, nil
