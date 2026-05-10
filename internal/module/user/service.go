@@ -12,19 +12,19 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type UserService struct {
+type Service struct {
 	queries  *sqlc.Queries
 	validate *validator.Validate
 }
 
-func NewUserService(queries *sqlc.Queries) *UserService {
-	return &UserService{
+func NewUserService(queries *sqlc.Queries) *Service {
+	return &Service{
 		queries:  queries,
 		validate: validator.New(),
 	}
 }
 
-func (s *UserService) CreateUser(ctx context.Context, input *CreateUserInput) error {
+func (s *Service) CreateUser(ctx context.Context, input *CreateUserInput) error {
 	if err := s.validate.Struct(input); err != nil {
 		return err
 	}

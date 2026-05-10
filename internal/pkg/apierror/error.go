@@ -28,22 +28,28 @@ func fromValidation(err validator.ValidationErrors) *APIError {
 	return &APIError{Code: http.StatusUnprocessableEntity, Errors: errs}
 }
 
-func Send(w http.ResponseWriter, err error) {
+func Send(w http.ResponseWriter, error error) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var apiErr *APIError
-	if errors.As(err, &apiErr) {
+	if errors.As(error, &apiErr) {
 		w.WriteHeader(apiErr.Code)
-		json.NewEncoder(w).Encode(apiErr)
+		err := json.NewEncoder(w).Encode(apiErr)
+		if err != nil {
+			return
+		}
 		return
 	}
 
 	var valErr validator.ValidationErrors
-	if errors.As(err, &valErr) {
+	if errors.As(error, &valErr) {
 		Send(w, fromValidation(valErr))
 		return
 	}
 
 	w.WriteHeader(http.StatusInternalServerError)
-	json.NewEncoder(w).Encode(&APIError{Message: "internal server error"})
+	error = json.NewEncoder(w).Encode(&APIError{Message: "internal server error"})
+	if error != nil {
+		return
+	}
 }

@@ -6,15 +6,15 @@ import (
 	"net/http"
 )
 
-type UserHandler struct {
-	service *UserService
+type Handler struct {
+	service *Service
 }
 
-func NewUserHandler(service *UserService) *UserHandler {
-	return &UserHandler{service: service}
+func NewUserHandler(service *Service) *Handler {
+	return &Handler{service: service}
 }
 
-func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var input CreateUserInput
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
