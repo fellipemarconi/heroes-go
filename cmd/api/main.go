@@ -1,6 +1,7 @@
 package main
 
 import (
+	"api/internal/infra/auth"
 	dbconn "api/internal/infra/db"
 	sqlc "api/internal/infra/db/sqlc"
 	"api/internal/server"
@@ -15,6 +16,7 @@ func main() {
 	defer pool.Close()
 
 	queries := sqlc.New(pool)
+	auth.GenerateJWT()
 
 	r := server.NewRouter(queries)
 	err = http.ListenAndServe(":3000", r)

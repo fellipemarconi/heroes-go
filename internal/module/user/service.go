@@ -1,6 +1,7 @@
 package user
 
 import (
+	"api/internal/infra/auth"
 	sqlc "api/internal/infra/db/sqlc"
 	"api/internal/pkg/apierror"
 	"context"
@@ -29,8 +30,8 @@ func (s *Service) CreateUser(ctx context.Context, input *CreateUserInput) error 
 		return err
 	}
 
-	existing, _ := s.queries.GetUserByEmail(ctx, input.Email)
-	if existing.ID.Valid {
+	user, _ := s.queries.GetUserByEmail(ctx, input.Email)
+	if user.ID.Valid {
 		return apierror.New(http.StatusConflict, "email is already used")
 	}
 
@@ -46,4 +47,34 @@ func (s *Service) CreateUser(ctx context.Context, input *CreateUserInput) error 
 		PasswordHash: string(hash),
 	})
 	return err
+}
+
+func (s *Service) SignInUser(ctx context.Context, input *SignInUserInput) (string, error) {
+	if err := s.validate.Struct(input); err != nil {
+		return "", err
+	}
+
+	user, err := s.queries.GetUserByEmail(ctx, input.Email)
+	if err != nil {
+		return "", apierror.New(http.StatusNotFound, "User not found")
+	}
+
+	err = bcrypt.CompareHashAndPassword(
+		[]byte(user.PasswordHash),
+		[]byte(input.Password),
+	)
+
+	if err != nil {
+		return "", apierror.New(http.StatusUnauthorized, "invalid credentials")
+	}
+
+	_, token, err := auth.TokenAuth.Encode(map[string]interface{}{
+		"user_id": user.ID.String(),
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }

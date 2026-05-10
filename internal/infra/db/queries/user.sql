@@ -1,5 +1,5 @@
 -- name: GetUserByEmail :one
-SELECT id, email FROM users
+SELECT id, email, password_hash FROM users
 WHERE email = $1 LIMIT 1;
 
 -- name: CreateUser :one
