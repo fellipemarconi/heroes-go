@@ -18,13 +18,15 @@ func NewRouter(queries *sqlc.Queries) chi.Router {
 
 	// Public routes
 	r.Group(func(r chi.Router) {
-		user.AuthRoutes(queries, r)
+		user.RoutesAuth(queries, r)
 	})
 
 	// Private routes
 	r.Group(func(r chi.Router) {
 		r.Use(jwtauth.Verifier(auth.TokenAuth))
 		r.Use(jwtauth.Authenticator(auth.TokenAuth))
+
+		user.RoutesUser(queries, r)
 	})
 
 	return r

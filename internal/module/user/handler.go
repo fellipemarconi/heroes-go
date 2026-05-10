@@ -2,6 +2,7 @@ package user
 
 import (
 	"api/internal/pkg/apierror"
+	"api/internal/pkg/ctx"
 	"encoding/json"
 	"net/http"
 )
@@ -35,6 +36,7 @@ func (h *Handler) SignInUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		apierror.Send(w, apierror.New(http.StatusBadRequest, "invalid request body"))
+		return
 	}
 
 	token, err := h.service.SignInUser(r.Context(), &input)
@@ -49,6 +51,27 @@ func (h *Handler) SignInUser(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(map[string]string{
 		"token": token,
 	})
+	if err != nil {
+		apierror.Send(w, err)
+		return
+	}
+}
+
+func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
+	userId, err := ctx.GetUserIDCtx(r)
+	if err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	user, err := h.service.GetUser(r.Context(), userId)
+	if err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(user)
 	if err != nil {
 		apierror.Send(w, err)
 		return

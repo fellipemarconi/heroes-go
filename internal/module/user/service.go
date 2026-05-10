@@ -4,6 +4,7 @@ import (
 	"api/internal/infra/auth"
 	sqlc "api/internal/infra/db/sqlc"
 	"api/internal/pkg/apierror"
+	"api/internal/pkg/types"
 	"context"
 	"net/http"
 
@@ -77,4 +78,23 @@ func (s *Service) SignInUser(ctx context.Context, input *SignInUserInput) (strin
 	}
 
 	return token, nil
+}
+
+func (s *Service) GetUser(ctx context.Context, userId string) (*User, error) {
+	id, err := types.ParseUUID(userId)
+	if err != nil {
+		return nil, apierror.New(http.StatusBadRequest, "invalid user ID")
+	}
+
+	user, err := s.queries.GetUserByID(ctx, id)
+	if err != nil {
+		return nil, apierror.New(http.StatusNotFound, "User not found")
+	}
+
+	return &User{
+		ID:        user.ID.String(),
+		Email:     user.Email,
+		Name:      user.Name,
+		CreatedAt: user.CreatedAt.Time,
+	}, nil
 }
