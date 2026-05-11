@@ -6,9 +6,11 @@ import (
 	"api/internal/pkg/apierror"
 	"api/internal/pkg/types"
 	"context"
+	"errors"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -27,17 +29,20 @@ func NewUserService(queries *sqlc.Queries) *Service {
 
 func (s *Service) CreateUser(ctx context.Context, input *CreateUserInput) error {
 	if err := s.validate.Struct(input); err != nil {
-		return apierror.BadRequest(err.Error())
+		return err
 	}
 
 	_, err := s.queries.GetUserByEmail(ctx, input.Email)
 	if err == nil {
-		return apierror.Conflict(ErrEmailAlreadyUsed.Error())
+		return apierror.ErrEmailAlreadyUsed
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return err
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return apierror.Internal(apierror.ErrInternalServer.Error())
+		return err
 	}
 
 	_, err = s.queries.CreateUser(ctx, sqlc.CreateUserParams{
@@ -46,38 +51,39 @@ func (s *Service) CreateUser(ctx context.Context, input *CreateUserInput) error 
 		Name:         input.Name,
 		PasswordHash: string(hash),
 	})
-	if err != nil {
-		return apierror.Internal(apierror.ErrInternalServer.Error())
-	}
 
-	return nil
+	return err
 }
 
 func (s *Service) SignInUser(ctx context.Context, input *SignInUserInput) (string, error) {
 	if err := s.validate.Struct(input); err != nil {
-		return "", apierror.BadRequest(err.Error())
+		return "", err
 	}
 
 	user, err := s.queries.GetUserByEmail(ctx, input.Email)
 	if err != nil {
-		return "", apierror.NotFound(ErrUserNotFound.Error())
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", apierror.ErrInvalidCredentials
+		}
+		return "", err
 	}
 
 	err = bcrypt.CompareHashAndPassword(
 		[]byte(user.PasswordHash),
 		[]byte(input.Password),
 	)
-
 	if err != nil {
-		return "", apierror.Unauthorized(apierror.ErrInvalidCredentials.Error())
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return "", apierror.ErrInvalidCredentials
+		}
+		return "", err
 	}
 
 	_, token, err := auth.TokenAuth.Encode(map[string]interface{}{
 		"user_id": user.ID.String(),
 	})
-
 	if err != nil {
-		return "", apierror.Internal(apierror.ErrInternalServer.Error())
+		return "", err
 	}
 
 	return token, nil
@@ -86,12 +92,15 @@ func (s *Service) SignInUser(ctx context.Context, input *SignInUserInput) (strin
 func (s *Service) GetUser(ctx context.Context, userId string) (*User, error) {
 	id, err := types.ParseUUID(userId)
 	if err != nil {
-		return nil, apierror.BadRequest(apierror.ErrInvalidID.Error())
+		return nil, apierror.ErrInvalidID
 	}
 
 	user, err := s.queries.GetUserByID(ctx, id)
 	if err != nil {
-		return nil, apierror.NotFound(ErrUserNotFound.Error())
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, apierror.ErrUserNotFound
+		}
+		return nil, err
 	}
 
 	return &User{
@@ -105,17 +114,16 @@ func (s *Service) GetUser(ctx context.Context, userId string) (*User, error) {
 func (s *Service) DeleteUser(ctx context.Context, userId string) error {
 	id, err := types.ParseUUID(userId)
 	if err != nil {
-		return apierror.BadRequest(apierror.ErrInvalidID.Error())
+		return apierror.ErrInvalidID
 	}
 
-	_, err = s.queries.GetUserByID(ctx, id)
+	rows, err := s.queries.DeleteUser(ctx, id)
 	if err != nil {
-		return apierror.NotFound(ErrUserNotFound.Error())
+		return err
 	}
 
-	err = s.queries.DeleteUser(ctx, id)
-	if err != nil {
-		return apierror.Internal(apierror.ErrInternalServer.Error())
+	if rows == 0 {
+		return apierror.ErrUserNotFound
 	}
 
 	return nil

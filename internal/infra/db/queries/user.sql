@@ -16,6 +16,6 @@ UPDATE users
 SET name = $2, password_hash = $3
 WHERE id = $1;
 
--- name: DeleteUser :exec
+-- name: DeleteUser :execrows
 DELETE FROM users
 WHERE id = $1;

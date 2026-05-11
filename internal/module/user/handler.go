@@ -19,7 +19,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var input CreateUserInput
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		apierror.Send(w, apierror.BadRequest(apierror.ErrInvalidBody.Error()))
+		apierror.Send(w, apierror.ErrInvalidBody)
 		return
 	}
 
@@ -35,7 +35,7 @@ func (h *Handler) SignInUser(w http.ResponseWriter, r *http.Request) {
 	var input SignInUserInput
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		apierror.Send(w, apierror.BadRequest(apierror.ErrInvalidBody.Error()))
+		apierror.Send(w, apierror.ErrInvalidBody)
 		return
 	}
 
@@ -48,11 +48,9 @@ func (h *Handler) SignInUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	err = json.NewEncoder(w).Encode(map[string]string{
+	if err = json.NewEncoder(w).Encode(map[string]string{
 		"token": token,
-	})
-	if err != nil {
-		apierror.Send(w, apierror.Internal(apierror.ErrInternalServer.Error()))
+	}); err != nil {
 		return
 	}
 }
@@ -71,9 +69,7 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(user)
-	if err != nil {
-		apierror.Send(w, apierror.Internal(apierror.ErrInternalServer.Error()))
+	if err = json.NewEncoder(w).Encode(user); err != nil {
 		return
 	}
 }

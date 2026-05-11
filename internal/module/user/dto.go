@@ -14,8 +14,8 @@ type SignInUserInput struct {
 }
 
 type User struct {
+	CreatedAt time.Time
 	ID        string
 	Email     string
 	Name      string
-	CreatedAt time.Time
 }

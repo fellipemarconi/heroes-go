@@ -1,10 +1,29 @@
 package apierror
 
-import "errors"
+import (
+	"net/http"
+)
+
+type AppError struct {
+	Message string
+	Status  int
+}
+
+func (e *AppError) Error() string {
+	return e.Message
+}
+
+func New(status int, message string) *AppError {
+	return &AppError{
+		Status:  status,
+		Message: message,
+	}
+}
 
 var (
-	ErrInvalidID          = errors.New("invalid id")
-	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrInternalServer     = errors.New("internal server error")
-	ErrInvalidBody        = errors.New("invalid request body")
+	ErrInvalidBody        = New(http.StatusBadRequest, "invalid request body")
+	ErrInvalidID          = New(http.StatusBadRequest, "invalid id")
+	ErrUserNotFound       = New(http.StatusNotFound, "user not found")
+	ErrInvalidCredentials = New(http.StatusUnauthorized, "invalid credentials")
+	ErrEmailAlreadyUsed   = New(http.StatusConflict, "email already used")
 )

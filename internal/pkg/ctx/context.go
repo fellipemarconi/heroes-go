@@ -12,7 +12,7 @@ func GetUserIDCtx(r *http.Request) (string, error) {
 
 	id, ok := claims["user_id"].(string)
 	if !ok {
-		return "", apierror.Internal(apierror.ErrInternalServer.Error())
+		return "", apierror.ErrInvalidCredentials
 	}
 
 	return id, nil
