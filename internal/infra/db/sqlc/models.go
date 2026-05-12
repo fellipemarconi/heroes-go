@@ -5,8 +5,65 @@
 package db
 
 import (
+	"database/sql/driver"
+	"fmt"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type FileType string
+
+const (
+	FileTypeProfile  FileType = "profile"
+	FileTypeImage    FileType = "image"
+	FileTypeVideo    FileType = "video"
+	FileTypeDocument FileType = "document"
+)
+
+func (e *FileType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = FileType(s)
+	case string:
+		*e = FileType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for FileType: %T", src)
+	}
+	return nil
+}
+
+type NullFileType struct {
+	FileType FileType
+	Valid    bool // Valid is true if FileType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullFileType) Scan(value interface{}) error {
+	if value == nil {
+		ns.FileType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.FileType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullFileType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.FileType), nil
+}
+
+type File struct {
+	ID        pgtype.UUID
+	Path      string
+	Type      FileType
+	Metadata  []byte
+	UserID    pgtype.UUID
+	CreatedAt pgtype.Timestamp
+	UpdatedAt pgtype.Timestamp
+}
 
 type User struct {
 	ID           pgtype.UUID
@@ -15,4 +72,5 @@ type User struct {
 	PasswordHash string
 	CreatedAt    pgtype.Timestamp
 	UpdatedAt    pgtype.Timestamp
+	Image        pgtype.Text
 }

@@ -4,10 +4,11 @@ import (
 	sqlc "api/internal/infra/db/sqlc"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func RoutesAuth(queries *sqlc.Queries, r chi.Router) {
-	service := NewUserService(queries)
+func RoutesAuth(db *pgxpool.Pool, queries *sqlc.Queries, r chi.Router) {
+	service := NewUserService(db, queries)
 	handler := NewUserHandler(service)
 
 	r.Post("/api/auth/register", handler.CreateUser)
@@ -16,11 +17,12 @@ func RoutesAuth(queries *sqlc.Queries, r chi.Router) {
 	r.Post("/api/auth/reset-password", handler.ResetPassword)
 }
 
-func RoutesUser(queries *sqlc.Queries, r chi.Router) {
-	service := NewUserService(queries)
+func RoutesUser(db *pgxpool.Pool, queries *sqlc.Queries, r chi.Router) {
+	service := NewUserService(db, queries)
 	handler := NewUserHandler(service)
 
 	r.Get("/api/user", handler.GetUser)
 	r.Delete("/api/user", handler.DeleteUser)
 	r.Patch("/api/user", handler.UpdateUser)
+	r.Post("/api/user/image", handler.UpdateProfileImage)
 }

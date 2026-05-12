@@ -8,9 +8,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/jwtauth/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewRouter(queries *sqlc.Queries) chi.Router {
+func NewRouter(db *pgxpool.Pool, queries *sqlc.Queries) chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -18,7 +19,7 @@ func NewRouter(queries *sqlc.Queries) chi.Router {
 
 	// Public routes
 	r.Group(func(r chi.Router) {
-		user.RoutesAuth(queries, r)
+		user.RoutesAuth(db, queries, r)
 	})
 
 	// Private routes
@@ -26,7 +27,7 @@ func NewRouter(queries *sqlc.Queries) chi.Router {
 		r.Use(jwtauth.Verifier(auth.TokenAuth))
 		r.Use(jwtauth.Authenticator(auth.TokenAuth))
 
-		user.RoutesUser(queries, r)
+		user.RoutesUser(db, queries, r)
 	})
 
 	return r

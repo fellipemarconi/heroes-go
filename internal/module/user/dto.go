@@ -1,6 +1,9 @@
 package user
 
-import "time"
+import (
+	"mime/multipart"
+	"time"
+)
 
 type CreateUserInput struct {
 	Email    string `validate:"required,email"`
@@ -24,6 +27,7 @@ type User struct {
 	ID        string
 	Email     string
 	Name      string
+	Image     string
 }
 
 type ForgotPasswordInput struct {
@@ -33,4 +37,10 @@ type ForgotPasswordInput struct {
 type ResetPasswordInput struct {
 	Token       string `validate:"required"`
 	NewPassword string `validate:"required,min=8"`
+}
+
+type UpdateProfileImageInput struct {
+	File        multipart.File
+	FileHeader  *multipart.FileHeader
+	ContentType string
 }

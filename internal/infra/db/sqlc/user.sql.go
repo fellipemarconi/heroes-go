@@ -68,7 +68,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, name, password_hash, created_at FROM users
+SELECT id, email, name, password_hash, image,created_at FROM users
 WHERE id = $1 LIMIT 1
 `
 
@@ -77,6 +77,7 @@ type GetUserByIDRow struct {
 	Email        string
 	Name         string
 	PasswordHash string
+	Image        pgtype.Text
 	CreatedAt    pgtype.Timestamp
 }
 
@@ -88,6 +89,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDR
 		&i.Email,
 		&i.Name,
 		&i.PasswordHash,
+		&i.Image,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -107,6 +109,22 @@ type UpdateUserParams struct {
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
 	_, err := q.db.Exec(ctx, updateUser, arg.ID, arg.Name, arg.PasswordHash)
+	return err
+}
+
+const updateUserImage = `-- name: UpdateUserImage :exec
+UPDATE users
+SET image = $2, updated_at = now()
+WHERE id = $1
+`
+
+type UpdateUserImageParams struct {
+	ID    pgtype.UUID
+	Image pgtype.Text
+}
+
+func (q *Queries) UpdateUserImage(ctx context.Context, arg UpdateUserImageParams) error {
+	_, err := q.db.Exec(ctx, updateUserImage, arg.ID, arg.Image)
 	return err
 }
 

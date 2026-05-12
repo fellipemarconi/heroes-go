@@ -4,6 +4,8 @@ import (
 	"api/internal/pkg/apierror"
 	"api/internal/pkg/ctx"
 	"encoding/json"
+	"log"
+	"mime/multipart"
 	"net/http"
 )
 
@@ -134,6 +136,57 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.ResetPassword(r.Context(), &input); err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) UpdateProfileImage(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(
+		w,
+		r.Body,
+		5<<20,
+	)
+
+	err := r.ParseMultipartForm(5 << 20)
+	if err != nil {
+		apierror.Send(w, apierror.ErrInvalidBody)
+		return
+	}
+
+	file, header, err := r.FormFile("image")
+	if err != nil {
+		apierror.Send(w, apierror.ErrInvalidBody)
+		return
+	}
+	defer func(file multipart.File) {
+		err = file.Close()
+		if err != nil {
+
+		}
+	}(file)
+
+	contentType := header.Header.Get("Content-Type")
+
+	userId, err := ctx.GetUserIDCtx(r)
+	if err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	err = h.service.UpdateProfileImage(
+		r.Context(),
+		userId,
+		&UpdateProfileImageInput{
+			File:        file,
+			FileHeader:  header,
+			ContentType: contentType,
+		},
+	)
+	if err != nil {
+		log.Print("err is here", err)
 		apierror.Send(w, err)
 		return
 	}

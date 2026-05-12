@@ -5,11 +5,13 @@ import (
 	sqlc "api/internal/infra/db/sqlc"
 	"api/internal/infra/email"
 	redisconn "api/internal/infra/redis"
+	"api/internal/infra/storage"
 	"api/internal/pkg/apierror"
 	"api/internal/pkg/types"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -17,16 +19,19 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Service struct {
+	db       *pgxpool.Pool
 	queries  *sqlc.Queries
 	validate *validator.Validate
 }
 
-func NewUserService(queries *sqlc.Queries) *Service {
+func NewUserService(db *pgxpool.Pool, queries *sqlc.Queries) *Service {
 	return &Service{
+		db:       db,
 		queries:  queries,
 		validate: validator.New(),
 	}
@@ -115,6 +120,7 @@ func (s *Service) GetUser(ctx context.Context, userId string) (*User, error) {
 		Email:     user.Email,
 		Name:      user.Name,
 		CreatedAt: user.CreatedAt.Time,
+		Image:     user.Image.String,
 	}, nil
 }
 
@@ -275,6 +281,122 @@ func (s *Service) ResetPassword(ctx context.Context, input *ResetPasswordInput) 
 	}
 
 	_ = redisconn.Client.Del(ctx, "reset:password:"+key)
+
+	return nil
+}
+
+func (s *Service) UpdateProfileImage(
+	ctx context.Context,
+	userId string,
+	input *UpdateProfileImageInput,
+) error {
+	id, err := types.ParseUUID(userId)
+	if err != nil {
+		return apierror.ErrInvalidID
+	}
+
+	err = storage.ValidateImageFile(
+		input.FileHeader,
+		input.ContentType,
+	)
+	if err != nil {
+		return err
+	}
+
+	path, err := storage.UploadFile(
+		ctx,
+		input.File,
+		input.FileHeader.Size,
+		input.ContentType,
+		"profile",
+	)
+	if err != nil {
+		return err
+	}
+
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		_ = storage.DeleteFile(ctx, path)
+		return err
+	}
+
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	qtx := s.queries.WithTx(tx)
+
+	user, err := qtx.GetUserByID(ctx, id)
+	if err != nil {
+		_ = storage.DeleteFile(ctx, path)
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return apierror.ErrUserNotFound
+		}
+
+		return err
+	}
+
+	oldImage := ""
+
+	if user.Image.Valid {
+		oldImage = user.Image.String
+	}
+
+	err = qtx.UpdateUserImage(
+		ctx,
+		sqlc.UpdateUserImageParams{
+			ID: id,
+			Image: pgtype.Text{
+				String: path,
+				Valid:  true,
+			},
+		},
+	)
+	if err != nil {
+		_ = storage.DeleteFile(ctx, path)
+		return err
+	}
+
+	metadata, err := json.Marshal(map[string]any{
+		"size":          input.FileHeader.Size,
+		"mime_type":     input.ContentType,
+		"original_name": input.FileHeader.Filename,
+	})
+	if err != nil {
+		_ = storage.DeleteFile(ctx, path)
+		return err
+	}
+
+	err = qtx.CreateFile(
+		ctx,
+		sqlc.CreateFileParams{
+			ID:       pgtype.UUID{Bytes: uuid.New(), Valid: true},
+			Path:     path,
+			Type:     sqlc.FileTypeProfile,
+			Metadata: metadata,
+			UserID:   id,
+		},
+	)
+	if err != nil {
+		_ = storage.DeleteFile(ctx, path)
+		return err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		_ = storage.DeleteFile(ctx, path)
+		return err
+	}
+
+	if oldImage != "" {
+		_ = storage.DeleteFile(ctx, oldImage)
+
+		_ = s.queries.DeleteFileByPath(
+			ctx,
+			oldImage,
+		)
+	}
 
 	return nil
 }
