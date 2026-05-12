@@ -26,4 +26,5 @@ var (
 	ErrUserNotFound       = New(http.StatusNotFound, "user not found")
 	ErrInvalidCredentials = New(http.StatusUnauthorized, "invalid credentials")
 	ErrEmailAlreadyUsed   = New(http.StatusConflict, "email already used")
+	ErrInvalidToken       = New(http.StatusUnauthorized, "invalid token")
 )

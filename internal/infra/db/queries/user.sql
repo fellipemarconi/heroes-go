@@ -19,3 +19,8 @@ WHERE id = $1;
 -- name: DeleteUser :execrows
 DELETE FROM users
 WHERE id = $1;
+
+-- name: UpdateUserPassword :exec
+UPDATE users
+SET password_hash = $2
+WHERE id = $1;

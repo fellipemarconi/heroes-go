@@ -3,9 +3,12 @@ package user
 import (
 	"api/internal/infra/auth"
 	sqlc "api/internal/infra/db/sqlc"
+	redisconn "api/internal/infra/redis"
 	"api/internal/pkg/apierror"
 	"api/internal/pkg/types"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -190,6 +193,66 @@ func (s *Service) UpdateUser(ctx context.Context, userId string, input *UpdateUs
 	}); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (s *Service) ForgotPassword(ctx context.Context, input *ForgotPasswordInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return err
+	}
+
+	user, err := s.queries.GetUserByEmail(ctx, input.Email)
+	if err != nil {
+		return nil
+	}
+
+	token := uuid.NewString()
+	hash := sha256.Sum256([]byte(token))
+	key := hex.EncodeToString(hash[:])
+
+	err = redisconn.Client.Set(ctx, "reset:password:"+key, user.ID.String(), 15*time.Minute).Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Service) ResetPassword(ctx context.Context, input *ResetPasswordInput) error {
+	if err := s.validate.Struct(input); err != nil {
+		return err
+	}
+
+	hash := sha256.Sum256([]byte(input.Token))
+	key := hex.EncodeToString(hash[:])
+
+	userId, err := redisconn.Client.Get(ctx, "reset:password:"+key).Result()
+	if err != nil {
+		return apierror.ErrInvalidToken
+	}
+
+	id, err := types.ParseUUID(userId)
+	if err != nil {
+		return apierror.ErrInvalidID
+	}
+
+	hashPass, err := bcrypt.GenerateFromPassword(
+		[]byte(input.NewPassword),
+		bcrypt.DefaultCost,
+	)
+	if err != nil {
+		return err
+	}
+
+	if err = s.queries.UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{
+		ID:           id,
+		PasswordHash: string(hashPass),
+	}); err != nil {
+		return err
+	}
+
+	_ = redisconn.Client.Del(ctx, "reset:password:"+key)
 
 	return nil
 }

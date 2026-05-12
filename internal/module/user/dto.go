@@ -25,3 +25,12 @@ type User struct {
 	Email     string
 	Name      string
 }
+
+type ForgotPasswordInput struct {
+	Email string `validate:"required,email"`
+}
+
+type ResetPasswordInput struct {
+	Token       string `validate:"required"`
+	NewPassword string `validate:"required,min=8"`
+}

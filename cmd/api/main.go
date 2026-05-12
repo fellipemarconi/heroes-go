@@ -4,6 +4,7 @@ import (
 	"api/internal/infra/auth"
 	dbconn "api/internal/infra/db"
 	sqlc "api/internal/infra/db/sqlc"
+	redisconn "api/internal/infra/redis"
 	"api/internal/server"
 	"net/http"
 )
@@ -16,6 +17,7 @@ func main() {
 	defer pool.Close()
 
 	queries := sqlc.New(pool)
+	redisconn.ConnectRedis()
 	auth.GenerateJWT()
 
 	r := server.NewRouter(queries)

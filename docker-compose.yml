@@ -32,6 +32,15 @@ services:
     networks:
       - internal
 
+  redis:
+    image: redis:7-alpine
+    container_name: go-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - internal
+
 volumes:
   pgdata:
 
