@@ -8,7 +8,7 @@ VALUES ($1, $2, $3, $4)
 RETURNING id;
 
 -- name: GetUserByID :one
-SELECT id, email, name, created_at FROM users
+SELECT id, email, name, password_hash, created_at FROM users
 WHERE id = $1 LIMIT 1;
 
 -- name: UpdateUser :exec

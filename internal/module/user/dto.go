@@ -13,6 +13,12 @@ type SignInUserInput struct {
 	Password string `validate:"required,min=8"`
 }
 
+type UpdateUserInput struct {
+	Name        string `validate:"omitempty,min=3,max=100"`
+	OldPassword string `validate:"required_with=NewPassword,omitempty,min=8"`
+	NewPassword string `validate:"required_with=OldPassword,omitempty,min=8"`
+}
+
 type User struct {
 	CreatedAt time.Time
 	ID        string

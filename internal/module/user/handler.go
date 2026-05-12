@@ -88,3 +88,25 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	var input UpdateUserInput
+
+	userId, err := ctx.GetUserIDCtx(r)
+	if err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	if err = json.NewDecoder(r.Body).Decode(&input); err != nil {
+		apierror.Send(w, apierror.ErrInvalidBody)
+		return
+	}
+
+	if err = h.service.UpdateUser(r.Context(), userId, &input); err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

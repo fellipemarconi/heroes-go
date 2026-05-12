@@ -128,3 +128,65 @@ func (s *Service) DeleteUser(ctx context.Context, userId string) error {
 
 	return nil
 }
+
+func (s *Service) UpdateUser(ctx context.Context, userId string, input *UpdateUserInput) error {
+	if input.Name == "" && input.OldPassword == "" && input.NewPassword == "" {
+		return apierror.ErrInvalidBody
+	}
+
+	if err := s.validate.Struct(input); err != nil {
+		return err
+	}
+
+	id, err := types.ParseUUID(userId)
+	if err != nil {
+		return apierror.ErrInvalidID
+	}
+
+	user, err := s.queries.GetUserByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return apierror.ErrUserNotFound
+		}
+		return err
+	}
+
+	passwordHash := user.PasswordHash
+	name := user.Name
+
+	if input.Name != "" {
+		name = input.Name
+	}
+
+	if input.OldPassword != "" {
+		err = bcrypt.CompareHashAndPassword(
+			[]byte(user.PasswordHash),
+			[]byte(input.OldPassword),
+		)
+		if err != nil {
+			if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+				return apierror.ErrInvalidCredentials
+			}
+			return err
+		}
+
+		var hash []byte
+
+		hash, err = bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+
+		passwordHash = string(hash)
+	}
+
+	if err = s.queries.UpdateUser(ctx, sqlc.UpdateUserParams{
+		ID:           id,
+		Name:         name,
+		PasswordHash: passwordHash,
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
