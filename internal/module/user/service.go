@@ -7,6 +7,7 @@ import (
 	"api/internal/pkg/types"
 	"context"
 	"errors"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -81,6 +82,8 @@ func (s *Service) SignInUser(ctx context.Context, input *SignInUserInput) (strin
 
 	_, token, err := auth.TokenAuth.Encode(map[string]interface{}{
 		"user_id": user.ID.String(),
+		"exp":     time.Now().Add(2 * time.Hour).Unix(),
+		"iat":     time.Now().Unix(),
 	})
 	if err != nil {
 		return "", err
