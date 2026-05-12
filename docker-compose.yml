@@ -41,6 +41,16 @@ services:
     networks:
       - internal
 
+  emailpit:
+    image: axllent/mailpit:latest
+    container_name: go-emailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - internal
+
 volumes:
   pgdata:
 

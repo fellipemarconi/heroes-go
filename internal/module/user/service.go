@@ -3,6 +3,7 @@ package user
 import (
 	"api/internal/infra/auth"
 	sqlc "api/internal/infra/db/sqlc"
+	"api/internal/infra/email"
 	redisconn "api/internal/infra/redis"
 	"api/internal/pkg/apierror"
 	"api/internal/pkg/types"
@@ -212,6 +213,27 @@ func (s *Service) ForgotPassword(ctx context.Context, input *ForgotPasswordInput
 	key := hex.EncodeToString(hash[:])
 
 	err = redisconn.Client.Set(ctx, "reset:password:"+key, user.ID.String(), 15*time.Minute).Err()
+	if err != nil {
+		return err
+	}
+
+	body, err := email.RenderEmailTemplate(
+		"reset-pass.html",
+		struct {
+			Token string
+		}{
+			Token: token,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	err = email.SendEmail(
+		user.Email,
+		"Reset password",
+		body,
+	)
 	if err != nil {
 		return err
 	}
