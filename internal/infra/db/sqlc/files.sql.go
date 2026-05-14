@@ -48,31 +48,42 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) error {
 
 const deleteFileByPath = `-- name: DeleteFileByPath :exec
 DELETE FROM files
-WHERE path = $1
+WHERE path = $1 AND user_id = $2
 `
 
-func (q *Queries) DeleteFileByPath(ctx context.Context, path string) error {
-	_, err := q.db.Exec(ctx, deleteFileByPath, path)
+type DeleteFileByPathParams struct {
+	Path   string
+	UserID pgtype.UUID
+}
+
+func (q *Queries) DeleteFileByPath(ctx context.Context, arg DeleteFileByPathParams) error {
+	_, err := q.db.Exec(ctx, deleteFileByPath, arg.Path, arg.UserID)
 	return err
 }
 
 const getFileByPath = `-- name: GetFileByPath :one
-SELECT id, path, type, metadata, user_id, created_at, updated_at
+SELECT id, path, type, metadata, created_at
 FROM files
 WHERE path = $1 LIMIT 1
 `
 
-func (q *Queries) GetFileByPath(ctx context.Context, path string) (File, error) {
+type GetFileByPathRow struct {
+	ID        pgtype.UUID
+	Path      string
+	Type      FileType
+	Metadata  []byte
+	CreatedAt pgtype.Timestamp
+}
+
+func (q *Queries) GetFileByPath(ctx context.Context, path string) (GetFileByPathRow, error) {
 	row := q.db.QueryRow(ctx, getFileByPath, path)
-	var i File
+	var i GetFileByPathRow
 	err := row.Scan(
 		&i.ID,
 		&i.Path,
 		&i.Type,
 		&i.Metadata,
-		&i.UserID,
 		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }

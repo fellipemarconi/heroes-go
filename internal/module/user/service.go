@@ -394,7 +394,10 @@ func (s *Service) UpdateProfileImage(
 
 		_ = s.queries.DeleteFileByPath(
 			ctx,
-			oldImage,
+			sqlc.DeleteFileByPathParams{
+				Path:   oldImage,
+				UserID: id,
+			},
 		)
 	}
 
