@@ -133,6 +133,7 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var input ResetPasswordInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		apierror.Send(w, apierror.ErrInvalidBody)
+		return
 	}
 
 	if err := h.service.ResetPassword(r.Context(), &input); err != nil {
