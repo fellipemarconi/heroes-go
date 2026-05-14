@@ -41,6 +41,19 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Install migrate
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.19.0/migrate.linux-amd64.tar.gz \
+          | tar xvz
+          sudo mv migrate /usr/local/bin/migrate
+
+      - name: Run migrations
+        run: |
+          migrate \
+            -path internal/infra/db/migrations \
+            -database "postgres://postgres:postgres@localhost:5432/heroes_go?sslmode=disable" \
+            up
+
       - name: Install sqlc
         run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 
