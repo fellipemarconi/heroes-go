@@ -33,3 +33,6 @@ go.work.sum
 
 docker-compose.override.yml
 tmp
+.idea
+.fleet
+qodana*

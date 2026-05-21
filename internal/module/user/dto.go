@@ -23,11 +23,11 @@ type UpdateUserInput struct {
 }
 
 type User struct {
-	CreatedAt time.Time
-	ID        string
-	Email     string
-	Name      string
-	Image     string
+	CreatedAt time.Time `json:"created_at"`
+	ID        string    `json:"id"`
+	Email     string    `json:"email"`
+	Name      string    `json:"name"`
+	Image     string    `json:"image,omitempty"`
 }
 
 type ForgotPasswordInput struct {

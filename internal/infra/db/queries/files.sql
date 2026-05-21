@@ -15,10 +15,10 @@ INSERT INTO files (
 
 
 -- name: GetFileByPath :one
-SELECT *
+SELECT id, path, type, metadata, created_at
 FROM files
 WHERE path = $1 LIMIT 1;
 
 -- name: DeleteFileByPath :exec
 DELETE FROM files
-WHERE path = $1;
+WHERE path = $1 AND user_id = $2;

@@ -65,6 +65,11 @@ migrate-version:
 migrate-create:
 	migrate create -ext sql -dir internal/infra/db/migrations -seq $(NAME)
 
+migrate-drop:
+	docker run --rm -i --network $(NETWORK) \
+		-v $(PWD)/internal/infra/db/migrations:/migrations \
+		migrate/migrate -path=/migrations -database "$(DB_URL)" drop
+
 # --------------------
 # Dev reset
 # --------------------

@@ -65,6 +65,21 @@ type File struct {
 	UpdatedAt pgtype.Timestamp
 }
 
+type Hero struct {
+	ID          pgtype.UUID
+	UserID      pgtype.UUID
+	Name        string
+	Slug        string
+	Universe    string
+	Powers      []string
+	Alignment   string
+	Description pgtype.Text
+	Image       pgtype.Text
+	IsActive    bool
+	CreatedAt   pgtype.Timestamp
+	UpdatedAt   pgtype.Timestamp
+}
+
 type User struct {
 	ID           pgtype.UUID
 	Email        string
