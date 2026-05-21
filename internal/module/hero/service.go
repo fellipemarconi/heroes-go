@@ -28,8 +28,8 @@ func NewHeroService(db *pgxpool.Pool, queries *sqlc.Queries) *Service {
 	}
 }
 
-func (s *Service) CreateHero(ctx context.Context, userId string, input *CreateHeroInput) error {
-	id, err := types.ParseUUID(userId)
+func (s *Service) CreateHero(ctx context.Context, userID string, input *CreateHeroInput) error {
+	id, err := types.ParseUUID(userID)
 	if err != nil {
 		return apierror.ErrInvalidID
 	}
@@ -63,4 +63,25 @@ func (s *Service) CreateHero(ctx context.Context, userId string, input *CreateHe
 	}
 
 	return nil
+}
+
+func (s *Service) GetHero(ctx context.Context, slug string) (*Hero, error) {
+	hero, err := s.queries.GetHeroBySlug(ctx, slug)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, apierror.ErrHeroNotFound
+		}
+		return nil, err
+	}
+
+	return &Hero{
+		ID:          hero.ID.String(),
+		UserID:      hero.UserID.String(),
+		Name:        hero.Name,
+		Slug:        hero.Slug,
+		Alignment:   hero.Alignment,
+		Universe:    hero.Universe,
+		Powers:      hero.Powers,
+		Description: hero.Description.String,
+	}, nil
 }

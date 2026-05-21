@@ -27,5 +27,7 @@ var (
 	ErrInvalidCredentials  = New(http.StatusUnauthorized, "invalid credentials")
 	ErrEmailAlreadyUsed    = New(http.StatusConflict, "email already used")
 	ErrInvalidToken        = New(http.StatusUnauthorized, "invalid token")
+	ErrHeroNotFound        = New(http.StatusNotFound, "hero not found")
+	ErrMissingSlug         = New(http.StatusBadRequest, "missing slug")
 	ErrHeroSlugAlreadyUsed = New(http.StatusConflict, "hero slug already used")
 )

@@ -8,3 +8,14 @@ type CreateHeroInput struct {
 	Alignment   string   `validate:"required,oneof=hero villain anti-hero"`
 	Description string   `validate:"max=255"`
 }
+
+type Hero struct {
+	ID          string   `json:"id"`
+	UserID      string   `json:"user_id"`
+	Name        string   `json:"name"`
+	Slug        string   `json:"slug"`
+	Alignment   string   `json:"alignment"`
+	Universe    string   `json:"universe"`
+	Powers      []string `json:"powers"`
+	Description string   `json:"description"`
+}

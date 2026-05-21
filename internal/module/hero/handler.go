@@ -36,3 +36,22 @@ func (h *Handler) CreateHero(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 }
+
+func (h *Handler) GetHero(w http.ResponseWriter, r *http.Request) {
+	slug := r.URL.Query().Get("slug")
+	if slug == "" {
+		apierror.Send(w, apierror.ErrMissingSlug)
+		return
+	}
+
+	hero, err := h.service.GetHero(r.Context(), slug)
+	if err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(hero); err != nil {
+		return
+	}
+}
