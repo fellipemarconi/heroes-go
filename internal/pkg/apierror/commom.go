@@ -23,6 +23,7 @@ func New(status int, message string) *AppError {
 var (
 	ErrInvalidBody         = New(http.StatusBadRequest, "invalid request body")
 	ErrInvalidID           = New(http.StatusBadRequest, "invalid id")
+	ErrInvalidQuery        = New(http.StatusBadRequest, "invalid query parameter")
 	ErrUserNotFound        = New(http.StatusNotFound, "user not found")
 	ErrInvalidCredentials  = New(http.StatusUnauthorized, "invalid credentials")
 	ErrEmailAlreadyUsed    = New(http.StatusConflict, "email already used")

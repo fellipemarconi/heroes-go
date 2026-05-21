@@ -65,7 +65,7 @@ func (s *Service) CreateHero(ctx context.Context, userID string, input *CreateHe
 	return nil
 }
 
-func (s *Service) GetHero(ctx context.Context, slug string) (*Hero, error) {
+func (s *Service) GetHeroBySlug(ctx context.Context, slug string) (*Hero, error) {
 	hero, err := s.queries.GetHeroBySlug(ctx, slug)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -84,4 +84,43 @@ func (s *Service) GetHero(ctx context.Context, slug string) (*Hero, error) {
 		Powers:      hero.Powers,
 		Description: hero.Description.String,
 	}, nil
+}
+
+func (s *Service) ListHeroes(ctx context.Context, input *ListHeroesInput) ([]*Hero, error) {
+	params := sqlc.ListHeroesParams{
+		Universe: pgtype.Text{
+			String: input.Universe,
+			Valid:  input.Universe != "",
+		},
+		Alignment: pgtype.Text{
+			String: input.Alignment,
+			Valid:  input.Alignment != "",
+		},
+		PageOffset: input.PageOffset,
+		PageSize:   input.PageSize,
+	}
+	if input.IsActive != nil {
+		params.IsActive = pgtype.Bool{Bool: *input.IsActive, Valid: true}
+	}
+
+	heroes, err := s.queries.ListHeroes(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	heroesList := make([]*Hero, len(heroes))
+	for i, hero := range heroes {
+		heroesList[i] = &Hero{
+			ID:          hero.ID.String(),
+			UserID:      hero.UserID.String(),
+			Name:        hero.Name,
+			Slug:        hero.Slug,
+			Alignment:   hero.Alignment,
+			Universe:    hero.Universe,
+			Powers:      hero.Powers,
+			Description: hero.Description.String,
+		}
+	}
+
+	return heroesList, nil
 }

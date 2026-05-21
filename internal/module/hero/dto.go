@@ -9,6 +9,14 @@ type CreateHeroInput struct {
 	Description string   `validate:"max=255"`
 }
 
+type ListHeroesInput struct {
+	Universe   string
+	Alignment  string
+	IsActive   *bool
+	PageOffset int32
+	PageSize   int32
+}
+
 type Hero struct {
 	ID          string   `json:"id"`
 	UserID      string   `json:"user_id"`

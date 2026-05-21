@@ -13,4 +13,5 @@ func RoutesHero(db *pgxpool.Pool, queries *sqlc.Queries, r chi.Router) {
 
 	r.Post("/api/hero", handler.CreateHero)
 	r.Get("/api/hero", handler.GetHero)
+	r.Get("/api/heroes", handler.ListHeroes)
 }
