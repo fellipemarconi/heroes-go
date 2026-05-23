@@ -1,19 +1,14 @@
 package client
 
 import (
+	"api/internal/infra/auth"
 	"api/internal/module/admin"
-	"crypto/ed25519"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -24,19 +19,11 @@ var httpClient = &http.Client{
 }
 
 const (
-	adminSignatureHeader = "X-Admin-Signature"
-	adminTimestampHeader = "X-Admin-Timestamp"
-	adminStatsPath       = "/api/admin/stats"
-	adminUsersPath       = "/api/admin/users"
-	adminContainersPath  = "/api/admin/containers"
-	adminRestartPath     = "/api/admin/containers/restart"
-	adminLogsPath        = "/api/admin/logs"
-)
-
-var (
-	adminPrivateKeyOnce sync.Once
-	adminPrivateKey     ed25519.PrivateKey
-	adminPrivateKeyErr  error
+	adminStatsPath      = "/api/admin/stats"
+	adminUsersPath      = "/api/admin/users"
+	adminContainersPath = "/api/admin/containers"
+	adminRestartPath    = "/api/admin/containers/restart"
+	adminLogsPath       = "/api/admin/logs"
 )
 
 func GetStats() (*admin.Stats, error) {
@@ -62,8 +49,8 @@ func GetStats() (*admin.Stats, error) {
 	}
 
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set(adminTimestampHeader, timestamp)
-	req.Header.Set(adminSignatureHeader, signature)
+	req.Header.Set(auth.AdminTimestampHeader, timestamp)
+	req.Header.Set(auth.AdminSignatureHeader, signature)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -117,8 +104,8 @@ func GetUsers() ([]admin.UserSummary, error) {
 	}
 
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set(adminTimestampHeader, timestamp)
-	req.Header.Set(adminSignatureHeader, signature)
+	req.Header.Set(auth.AdminTimestampHeader, timestamp)
+	req.Header.Set(auth.AdminSignatureHeader, signature)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -172,8 +159,8 @@ func DeleteUser(userID string) error {
 		return err
 	}
 
-	req.Header.Set(adminTimestampHeader, timestamp)
-	req.Header.Set(adminSignatureHeader, signature)
+	req.Header.Set(auth.AdminTimestampHeader, timestamp)
+	req.Header.Set(auth.AdminSignatureHeader, signature)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -222,8 +209,8 @@ func GetContainers() ([]admin.ContainerSummary, error) {
 	}
 
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set(adminTimestampHeader, timestamp)
-	req.Header.Set(adminSignatureHeader, signature)
+	req.Header.Set(auth.AdminTimestampHeader, timestamp)
+	req.Header.Set(auth.AdminSignatureHeader, signature)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -276,8 +263,8 @@ func RestartContainers() error {
 		return err
 	}
 
-	req.Header.Set(adminTimestampHeader, timestamp)
-	req.Header.Set(adminSignatureHeader, signature)
+	req.Header.Set(auth.AdminTimestampHeader, timestamp)
+	req.Header.Set(auth.AdminSignatureHeader, signature)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -331,8 +318,8 @@ func GetLogs(limit int) ([]admin.LogEntry, error) {
 	}
 
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set(adminTimestampHeader, timestamp)
-	req.Header.Set(adminSignatureHeader, signature)
+	req.Header.Set(auth.AdminTimestampHeader, timestamp)
+	req.Header.Set(auth.AdminSignatureHeader, signature)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -364,52 +351,5 @@ func GetLogs(limit int) ([]admin.LogEntry, error) {
 }
 
 func signAdminRequest(method string, path string) (string, string, error) {
-	privateKey, err := loadAdminPrivateKey()
-	if err != nil {
-		return "", "", err
-	}
-
-	timestamp := time.Now().Unix()
-	payload := fmt.Sprintf("%s\n%s\n%d", method, path, timestamp)
-	signature := ed25519.Sign(privateKey, []byte(payload))
-
-	return strconv.FormatInt(timestamp, 10), base64.StdEncoding.EncodeToString(signature), nil
-}
-
-func loadAdminPrivateKey() (ed25519.PrivateKey, error) {
-	adminPrivateKeyOnce.Do(func() {
-		path := os.Getenv("ADMIN_PRIVATE_KEY_PATH")
-		if path == "" {
-			adminPrivateKeyErr = fmt.Errorf("ADMIN_PRIVATE_KEY_PATH not set")
-			return
-		}
-
-		data, err := os.ReadFile(path)
-		if err != nil {
-			adminPrivateKeyErr = fmt.Errorf("failed to read admin private key: %w", err)
-			return
-		}
-
-		block, _ := pem.Decode(data)
-		if block == nil {
-			adminPrivateKeyErr = fmt.Errorf("invalid admin private key PEM")
-			return
-		}
-
-		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-		if err != nil {
-			adminPrivateKeyErr = fmt.Errorf("failed to parse admin private key: %w", err)
-			return
-		}
-
-		privateKey, ok := key.(ed25519.PrivateKey)
-		if !ok {
-			adminPrivateKeyErr = fmt.Errorf("admin private key is not ed25519")
-			return
-		}
-
-		adminPrivateKey = privateKey
-	})
-
-	return adminPrivateKey, adminPrivateKeyErr
+	return auth.SignAdminRequest(method, path)
 }
