@@ -8,6 +8,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strconv"
+
+	"github.com/go-playground/validator/v10"
 )
 
 type Handler struct {
@@ -201,4 +203,55 @@ func (h *Handler) UpdateHeroImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) SearchHeroes(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	universe := r.URL.Query().Get("universe")
+	alignment := r.URL.Query().Get("alignment")
+
+	offset := int32(0)
+	limit := int32(20)
+
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.ParseInt(offsetStr, 10, 32); err == nil && o >= 0 {
+			offset = int32(o)
+		}
+	}
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.ParseInt(limitStr, 10, 32); err == nil && l > 0 && l <= 100 {
+			limit = int32(l)
+		}
+	}
+
+	input := SearchHeroesInput{
+		Query:      query,
+		Universe:   universe,
+		Alignment:  alignment,
+		PageOffset: offset,
+		PageSize:   limit,
+	}
+
+	if err := validator.New().Struct(input); err != nil {
+		apierror.Send(w, apierror.New(http.StatusBadRequest, "invalid search parameters"))
+		return
+	}
+
+	results, total, err := h.service.SearchHeroes(r.Context(), &input)
+	if err != nil {
+		apierror.Send(w, apierror.New(http.StatusInternalServerError, "failed to search heroes"))
+		return
+	}
+
+	response := SearchResultsResponse{
+		Results: results,
+		Total:   total,
+		Limit:   limit,
+		Offset:  offset,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(response)
 }

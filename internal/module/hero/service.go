@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -284,4 +285,65 @@ func (s *Service) UpdateHeroImage(
 	}
 
 	return nil
+}
+
+func (s *Service) SearchHeroes(ctx context.Context, input *SearchHeroesInput) ([]SearchHeroResponse, int64, error) {
+	if err := s.validate.Struct(input); err != nil {
+		return nil, 0, err
+	}
+
+	universeValue := ""
+	if input.Universe != "" {
+		universeValue = input.Universe
+	}
+	alignmentValue := ""
+	if input.Alignment != "" {
+		alignmentValue = input.Alignment
+	}
+
+	heroes, err := s.queries.SearchHeroes(ctx, sqlc.SearchHeroesParams{
+		PlaintoTsquery: input.Query,
+		Column2:        universeValue,
+		Column3:        alignmentValue,
+		Limit:          input.PageSize,
+		Offset:         input.PageOffset,
+	})
+	log.Print(heroes)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	total, err := s.queries.CountSearchHeroes(ctx, sqlc.CountSearchHeroesParams{
+		PlaintoTsquery: input.Query,
+		Column2:        universeValue,
+		Column3:        alignmentValue,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	results := make([]SearchHeroResponse, len(heroes))
+	for i, hero := range heroes {
+		description := ""
+		if hero.Description.Valid {
+			description = hero.Description.String
+		}
+		image := ""
+		if hero.Image.Valid {
+			image = hero.Image.String
+		}
+		results[i] = SearchHeroResponse{
+			ID:          hero.ID.String(),
+			Name:        hero.Name,
+			Slug:        hero.Slug,
+			Universe:    hero.Universe,
+			Alignment:   hero.Alignment,
+			Powers:      hero.Powers,
+			Description: description,
+			Image:       image,
+			Rank:        hero.Rank,
+		}
+	}
+
+	return results, total, nil
 }
