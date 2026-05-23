@@ -3,6 +3,7 @@ package server
 import (
 	"api/internal/infra/auth"
 	sqlc "api/internal/infra/db/sqlc"
+	"api/internal/module/file"
 	"api/internal/module/hero"
 	"api/internal/module/user"
 
@@ -30,6 +31,7 @@ func NewRouter(db *pgxpool.Pool, queries *sqlc.Queries) chi.Router {
 
 		user.RoutesUser(db, queries, r)
 		hero.RoutesHero(db, queries, r)
+		file.RoutesFile(r)
 	})
 
 	return r
