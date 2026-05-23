@@ -3,6 +3,7 @@ package server
 import (
 	"api/internal/infra/auth"
 	sqlc "api/internal/infra/db/sqlc"
+	"api/internal/module/admin"
 	"api/internal/module/file"
 	"api/internal/module/hero"
 	"api/internal/module/user"
@@ -23,6 +24,7 @@ func NewRouter(db *pgxpool.Pool, queries *sqlc.Queries) chi.Router {
 	// Public routes
 	r.Group(func(r chi.Router) {
 		user.RoutesAuth(db, queries, r)
+		admin.RoutesAdmin(db, queries, r)
 
 		setupDocsRoutes(r)
 	})
