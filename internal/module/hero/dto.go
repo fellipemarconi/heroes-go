@@ -42,3 +42,30 @@ type UpdateHeroImageInput struct {
 	FileHeader  *multipart.FileHeader
 	ContentType string
 }
+
+type SearchHeroesInput struct {
+	Query      string `form:"q" validate:"required,min=2,max=100"`
+	Universe   string `form:"universe"`
+	Alignment  string `form:"alignment"`
+	PageOffset int32  `form:"offset" validate:"min=0"`
+	PageSize   int32  `form:"limit" validate:"min=1,max=100"`
+}
+
+type SearchHeroResponse struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Slug        string   `json:"slug"`
+	Universe    string   `json:"universe"`
+	Alignment   string   `json:"alignment"`
+	Powers      []string `json:"powers"`
+	Description string   `json:"description"`
+	Image       string   `json:"image"`
+	Rank        float32  `json:"rank"`
+}
+
+type SearchResultsResponse struct {
+	Results []SearchHeroResponse `json:"results"`
+	Total   int64                `json:"total"`
+	Limit   int32                `json:"limit"`
+	Offset  int32                `json:"offset"`
+}
