@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"api/internal/infra/containers"
 	sqlc "api/internal/infra/db/sqlc"
 	"api/internal/infra/storage"
 	"api/internal/pkg/apierror"
@@ -84,4 +85,25 @@ func (s *Service) DeleteUser(ctx context.Context, userId string) error {
 	}
 
 	return nil
+}
+
+func (s *Service) ListContainers(ctx context.Context) ([]ContainerSummary, error) {
+	containersList, err := containers.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]ContainerSummary, 0, len(containersList))
+	for _, container := range containersList {
+		items = append(items, ContainerSummary{
+			Name:   container.Name,
+			Status: container.Status,
+		})
+	}
+
+	return items, nil
+}
+
+func (s *Service) RestartContainers(ctx context.Context) error {
+	return containers.RestartAll(ctx)
 }

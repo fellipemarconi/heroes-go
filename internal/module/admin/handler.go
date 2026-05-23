@@ -57,3 +57,26 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (h *Handler) ListContainers(w http.ResponseWriter, r *http.Request) {
+	containers, err := h.service.ListContainers(r.Context())
+	if err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(containers); err != nil {
+		log.Printf("failed to encode containers response: %v", err)
+		return
+	}
+}
+
+func (h *Handler) RestartContainers(w http.ResponseWriter, r *http.Request) {
+	if err := h.service.RestartContainers(r.Context()); err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

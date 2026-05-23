@@ -49,6 +49,9 @@ type DashboardModel struct {
 	userCursor   int
 	usersLoading bool
 
+	containers        []admin.ContainerSummary
+	containersLoading bool
+
 	confirmDelete bool
 	confirmUser   admin.UserSummary
 
@@ -65,14 +68,15 @@ func NewDashboard() DashboardModel {
 			"Logs",
 		},
 
-		storage:      -1,
-		statsLoading: true,
-		usersLoading: true,
+		storage:           -1,
+		statsLoading:      true,
+		usersLoading:      true,
+		containersLoading: true,
 	}
 }
 
 func (m DashboardModel) Init() tea.Cmd {
-	return tea.Batch(fetchStatsCmd(), fetchUsersCmd())
+	return tea.Batch(fetchStatsCmd(), fetchUsersCmd(), fetchContainersCmd())
 }
 
 type statsMsg struct {
@@ -96,6 +100,20 @@ type deleteUserMsg struct {
 }
 
 type deleteUserErrMsg struct {
+	err error
+}
+
+type containersMsg struct {
+	containers []admin.ContainerSummary
+}
+
+type containersErrMsg struct {
+	err error
+}
+
+type restartContainersMsg struct{}
+
+type restartContainersErrMsg struct {
 	err error
 }
 
@@ -125,6 +143,25 @@ func deleteUserCmd(userID string) tea.Cmd {
 			return deleteUserErrMsg{err: err}
 		}
 		return deleteUserMsg{id: userID}
+	}
+}
+
+func fetchContainersCmd() tea.Cmd {
+	return func() tea.Msg {
+		containers, err := client.GetContainers()
+		if err != nil {
+			return containersErrMsg{err: err}
+		}
+		return containersMsg{containers: containers}
+	}
+}
+
+func restartContainersCmd() tea.Cmd {
+	return func() tea.Msg {
+		if err := client.RestartContainers(); err != nil {
+			return restartContainersErrMsg{err: err}
+		}
+		return restartContainersMsg{}
 	}
 }
 
@@ -169,6 +206,27 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case deleteUserErrMsg:
 		m.err = msg.err.Error()
 		m.confirmDelete = false
+		return m, nil
+
+	case containersMsg:
+		m.containers = msg.containers
+		m.containersLoading = false
+		m.err = ""
+		return m, nil
+
+	case containersErrMsg:
+		m.containersLoading = false
+		m.err = msg.err.Error()
+		return m, nil
+
+	case restartContainersMsg:
+		m.status = "Containers restarted."
+		m.err = ""
+		m.containersLoading = true
+		return m, fetchContainersCmd()
+
+	case restartContainersErrMsg:
+		m.err = msg.err.Error()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -236,7 +294,16 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = ""
 			m.usersLoading = true
 			m.statsLoading = true
-			return m, tea.Batch(fetchUsersCmd(), fetchStatsCmd())
+			m.containersLoading = true
+			return m, tea.Batch(fetchUsersCmd(), fetchStatsCmd(), fetchContainersCmd())
+
+		case "R":
+			if m.menu[m.cursor] == "Containers" {
+				m.status = "Restarting containers..."
+				m.err = ""
+				m.containersLoading = true
+				return m, restartContainersCmd()
+			}
 		}
 	}
 
@@ -277,6 +344,9 @@ func (m DashboardModel) View() string {
 	if m.menu[m.cursor] == "Users" {
 		s += renderUsersList(m.users, m.userCursor, m.usersLoading)
 		s += "\n\n"
+	} else if m.menu[m.cursor] == "Containers" {
+		s += renderContainersList(m.containers, m.containersLoading)
+		s += "\n\n"
 	} else {
 		s += helpStyle.Render("Section not available yet.")
 		s += "\n\n"
@@ -307,6 +377,8 @@ func (m DashboardModel) View() string {
 		s += helpStyle.Render("[y] confirm • [n] cancel • [q] quit")
 	} else if m.menu[m.cursor] == "Users" {
 		s += helpStyle.Render("[↑/↓] users • [←/→] menu • [d] delete • [r] refresh • [q] quit")
+	} else if m.menu[m.cursor] == "Containers" {
+		s += helpStyle.Render("[←/→] menu • [R] restart all • [r] refresh • [q] quit")
 	} else {
 		s += helpStyle.Render("[←/→] menu • [r] refresh • [q] quit")
 	}
@@ -355,6 +427,30 @@ func renderUsersList(users []admin.UserSummary, cursor int, loading bool) string
 		} else {
 			output += "  " + line + "\n"
 		}
+	}
+
+	return output
+}
+
+func renderContainersList(containers []admin.ContainerSummary, loading bool) string {
+	if loading {
+		return "Loading containers..."
+	}
+
+	if len(containers) == 0 {
+		return "No containers found."
+	}
+
+	header := fmt.Sprintf("%-28s  %s", "Name", "Status")
+	output := header + "\n"
+
+	for _, container := range containers {
+		line := fmt.Sprintf(
+			"%-28s  %s",
+			truncate(container.Name, 28),
+			container.Status,
+		)
+		output += "  " + line + "\n"
 	}
 
 	return output

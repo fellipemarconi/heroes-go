@@ -15,3 +15,8 @@ type UserSummary struct {
 	Email     string    `json:"email"`
 	Name      string    `json:"name"`
 }
+
+type ContainerSummary struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
