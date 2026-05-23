@@ -24,6 +24,11 @@ SELECT id, user_id, name, slug, universe, powers, alignment, description, image,
 FROM heroes
 WHERE slug = $1 LIMIT 1;
 
+-- name: GetHeroByID :one
+SELECT id, user_id, image
+FROM heroes
+WHERE id = $1 AND user_id = $2 LIMIT 1;
+
 -- name: ListHeroes :many
 SELECT id, user_id, name, slug, universe, powers, alignment, description, image, is_active, created_at
 FROM heroes
@@ -48,7 +53,7 @@ SET
     updated_at = now()
 WHERE id = $1 AND user_id = $2;
 
--- name: SetHeroActiveStatus :exec
+-- name: SetHeroActiveStatus :execrows
 UPDATE heroes
 SET
     is_active = $3,

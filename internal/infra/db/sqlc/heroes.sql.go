@@ -58,6 +58,30 @@ func (q *Queries) CreateHero(ctx context.Context, arg CreateHeroParams) error {
 	return err
 }
 
+const getHeroByID = `-- name: GetHeroByID :one
+SELECT id, user_id, image
+FROM heroes
+WHERE id = $1 AND user_id = $2 LIMIT 1
+`
+
+type GetHeroByIDParams struct {
+	ID     pgtype.UUID
+	UserID pgtype.UUID
+}
+
+type GetHeroByIDRow struct {
+	ID     pgtype.UUID
+	UserID pgtype.UUID
+	Image  pgtype.Text
+}
+
+func (q *Queries) GetHeroByID(ctx context.Context, arg GetHeroByIDParams) (GetHeroByIDRow, error) {
+	row := q.db.QueryRow(ctx, getHeroByID, arg.ID, arg.UserID)
+	var i GetHeroByIDRow
+	err := row.Scan(&i.ID, &i.UserID, &i.Image)
+	return i, err
+}
+
 const getHeroBySlug = `-- name: GetHeroBySlug :one
 SELECT id, user_id, name, slug, universe, powers, alignment, description, image, is_active, created_at
 FROM heroes
@@ -171,7 +195,7 @@ func (q *Queries) ListHeroes(ctx context.Context, arg ListHeroesParams) ([]ListH
 	return items, nil
 }
 
-const setHeroActiveStatus = `-- name: SetHeroActiveStatus :exec
+const setHeroActiveStatus = `-- name: SetHeroActiveStatus :execrows
 UPDATE heroes
 SET
     is_active = $3,
@@ -185,9 +209,12 @@ type SetHeroActiveStatusParams struct {
 	IsActive bool
 }
 
-func (q *Queries) SetHeroActiveStatus(ctx context.Context, arg SetHeroActiveStatusParams) error {
-	_, err := q.db.Exec(ctx, setHeroActiveStatus, arg.ID, arg.UserID, arg.IsActive)
-	return err
+func (q *Queries) SetHeroActiveStatus(ctx context.Context, arg SetHeroActiveStatusParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setHeroActiveStatus, arg.ID, arg.UserID, arg.IsActive)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateHero = `-- name: UpdateHero :exec
