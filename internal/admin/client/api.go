@@ -2,12 +2,18 @@ package client
 
 import (
 	"api/internal/module/admin"
+	"crypto/ed25519"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -17,17 +23,34 @@ var httpClient = &http.Client{
 	Timeout: 10 * time.Second,
 }
 
+const (
+	adminSignatureHeader = "X-Admin-Signature"
+	adminTimestampHeader = "X-Admin-Timestamp"
+	adminStatsPath       = "/api/admin/stats"
+)
+
+var (
+	adminPrivateKeyOnce sync.Once
+	adminPrivateKey     ed25519.PrivateKey
+	adminPrivateKeyErr  error
+)
+
 func GetStats() (*admin.Stats, error) {
 	_ = godotenv.Load()
 
-	baseURL := os.Getenv("ADMIN_API_URL")
+	baseURL := strings.TrimRight(os.Getenv("ADMIN_API_URL"), "/")
 	if baseURL == "" {
 		return nil, fmt.Errorf("ADMIN_API_URL not set")
 	}
 
+	timestamp, signature, err := signAdminRequest(http.MethodGet, adminStatsPath)
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequest(
 		http.MethodGet,
-		baseURL+"/api/admin/stats",
+		baseURL+adminStatsPath,
 		nil,
 	)
 	if err != nil {
@@ -35,6 +58,8 @@ func GetStats() (*admin.Stats, error) {
 	}
 
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set(adminTimestampHeader, timestamp)
+	req.Header.Set(adminSignatureHeader, signature)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -63,4 +88,55 @@ func GetStats() (*admin.Stats, error) {
 	}
 
 	return &stats, nil
+}
+
+func signAdminRequest(method string, path string) (string, string, error) {
+	privateKey, err := loadAdminPrivateKey()
+	if err != nil {
+		return "", "", err
+	}
+
+	timestamp := time.Now().Unix()
+	payload := fmt.Sprintf("%s\n%s\n%d", method, path, timestamp)
+	signature := ed25519.Sign(privateKey, []byte(payload))
+
+	return strconv.FormatInt(timestamp, 10), base64.StdEncoding.EncodeToString(signature), nil
+}
+
+func loadAdminPrivateKey() (ed25519.PrivateKey, error) {
+	adminPrivateKeyOnce.Do(func() {
+		path := os.Getenv("ADMIN_PRIVATE_KEY_PATH")
+		if path == "" {
+			adminPrivateKeyErr = fmt.Errorf("ADMIN_PRIVATE_KEY_PATH not set")
+			return
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			adminPrivateKeyErr = fmt.Errorf("failed to read admin private key: %w", err)
+			return
+		}
+
+		block, _ := pem.Decode(data)
+		if block == nil {
+			adminPrivateKeyErr = fmt.Errorf("invalid admin private key PEM")
+			return
+		}
+
+		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			adminPrivateKeyErr = fmt.Errorf("failed to parse admin private key: %w", err)
+			return
+		}
+
+		privateKey, ok := key.(ed25519.PrivateKey)
+		if !ok {
+			adminPrivateKeyErr = fmt.Errorf("admin private key is not ed25519")
+			return
+		}
+
+		adminPrivateKey = privateKey
+	})
+
+	return adminPrivateKey, adminPrivateKeyErr
 }

@@ -24,7 +24,7 @@ func NewRouter(db *pgxpool.Pool, queries *sqlc.Queries) chi.Router {
 	// Public routes
 	r.Group(func(r chi.Router) {
 		user.RoutesAuth(db, queries, r)
-		admin.RoutesAdmin(db, queries, r)
+		admin.RoutesAdmin(db, queries, r) // Admin routes with signature-based auth
 
 		setupDocsRoutes(r)
 	})
