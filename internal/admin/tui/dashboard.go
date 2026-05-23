@@ -11,35 +11,120 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
+// Color palette - Modern command center aesthetic
+const (
+	colorBg      = "#0f0f1e" // Dark charcoal
+	colorAccent  = "#00d9ff" // Vibrant cyan
+	colorSuccess = "#10b981" // Emerald
+	colorWarn    = "#f59e0b" // Amber
+	colorError   = "#ef4444" // Red
+	colorMuted   = "#6b7280" // Gray
+	colorSubtle  = "#374151" // Dark gray
+)
+
 var (
+	// Title & Headers
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("205"))
+			Foreground(lipgloss.Color("51")).
+			MarginBottom(1)
+
+	headerStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("51")).
+			Bold(true).
+			MarginTop(1).
+			MarginBottom(1)
+
+	subtitleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("244")).
+			Italic(true)
+
+	// Navigation & Selection
+	menuStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("246")).
+			Padding(0, 1)
+
+	activeMenuStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("51")).
+			Background(lipgloss.Color("236")).
+			Bold(true).
+			Padding(0, 2)
 
 	selectedStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("212")).
+			Foreground(lipgloss.Color("51")).
 			Bold(true)
 
+	// Data Display
 	statsStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("86"))
+			Foreground(lipgloss.Color("242"))
 
+	statLabelStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("248")).
+			Bold(true)
+
+	statValueStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("51")).
+			Bold(true)
+
+	// Card styling
+	cardStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("238")).
+			Padding(1, 2).
+			MarginTop(1).
+			MarginBottom(1)
+
+	tableHeaderStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("51")).
+				Bold(true).
+				Underline(true)
+
+	// Status & Messages
 	helpStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241"))
+			Foreground(lipgloss.Color("243")).
+			Italic(true).
+			MarginTop(1)
 
 	statusStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("70"))
-
-	confirmStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("214")).
+			Foreground(lipgloss.Color("42")).
 			Bold(true)
 
-	modalStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("241")).
-			Padding(1, 2)
+	confirmStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("226")).
+			Bold(true)
 
 	errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("196"))
+			Foreground(lipgloss.Color("196")).
+			Bold(true)
+
+	infoStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("51"))
+
+	// Modal & Overlay
+	modalStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("51")).
+			Background(lipgloss.Color("235")).
+			Padding(2, 3).
+			MarginTop(1)
+
+	modalTitleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("51")).
+			Bold(true).
+			MarginBottom(1)
+
+	// Loading indicator
+	loadingStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("246")).
+			Italic(true)
+
+	// Keyboard hints
+	keyStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("51")).
+			Bold(true)
+
+	keyLabelStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("248"))
 )
 
 type DashboardModel struct {
@@ -419,97 +504,373 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m DashboardModel) View() string {
-	s := titleStyle.Render("Heroes Admin") + "\n\n"
+	var sb strings.Builder
 
-	for i, item := range m.menu {
+	// Header
+	sb.WriteString(titleStyle.Render("⌬ HEROES ADMIN")) // Unicode symbol for tech aesthetic
+	sb.WriteString("\n")
+	sb.WriteString(subtitleStyle.Render("Platform Control Center"))
+	sb.WriteString("\n\n")
 
-		line := fmt.Sprintf("  %s", item)
+	// Stats Card
+	sb.WriteString(renderStatsCard(m.statsLoading, m.usersCount, m.heroes, m.images, m.storage))
+	sb.WriteString("\n")
 
-		if m.cursor == i {
-			line = selectedStyle.Render("> " + item)
-		}
+	// Navigation Menu
+	sb.WriteString(renderMenuBar(m.menu, m.cursor))
+	sb.WriteString("\n")
 
-		s += line + "\n"
-	}
-
-	s += "\n"
-
-	stats := "Loading stats..."
-	if !m.statsLoading {
-		stats = fmt.Sprintf(
-			"Users: %d\nHeroes: %d\nImages: %d\nStorage: %s",
-			m.usersCount,
-			m.heroes,
-			m.images,
-			formatStorage(m.storage),
-		)
-	}
-
-	s += statsStyle.Render(stats)
-
-	s += "\n\n"
-
+	// Content Section
 	if m.menu[m.cursor] == "Users" {
-		s += renderUsersList(m.users, m.userCursor, m.usersLoading)
-		s += "\n\n"
+		sb.WriteString(renderUsersSection(m))
 	} else if m.menu[m.cursor] == "Containers" {
-		s += renderContainersList(m.containers, m.containersLoading)
-		s += "\n\n"
+		sb.WriteString(renderContainersSection(m))
 	} else if m.menu[m.cursor] == "Logs" {
-		s += renderLogsList(m.logs, m.logCursor, m.logsLoading, m.searchQuery, m.searchMode)
-		s += "\n\n"
-	} else {
-		s += helpStyle.Render("Section not available yet.")
-		s += "\n\n"
+		sb.WriteString(renderLogsSection(m))
 	}
 
+	// Confirmation Dialog
 	if m.confirmDelete {
-		s += confirmStyle.Render(
-			fmt.Sprintf(
-				"Delete user %s (%s)? [y]es / [n]o",
-				m.confirmUser.Email,
-				m.confirmUser.ID,
-			),
-		)
-		s += "\n\n"
+		sb.WriteString(renderConfirmDialog(m.confirmUser))
+		sb.WriteString("\n")
 	}
 
+	// Log Detail Modal
 	if m.logDetail {
 		if logEntry, ok := selectedLog(m.logs, m.searchQuery, m.logCursor); ok {
-			s += modalStyle.Render(renderLogDetail(logEntry))
-			s += "\n\n"
+			sb.WriteString(renderLogDetailModal(logEntry))
+			sb.WriteString("\n")
 		}
+	}
+
+	// Status & Error Messages
+	if m.err != "" {
+		sb.WriteString("\n")
+		sb.WriteString(errorStyle.Render("✗ " + m.err))
 	}
 
 	if m.status != "" {
-		s += statusStyle.Render(m.status)
-		s += "\n\n"
+		sb.WriteString("\n")
+		sb.WriteString(statusStyle.Render("✓ " + m.status))
 	}
 
-	if m.err != "" {
-		s += errorStyle.Render("Error: " + m.err)
-		s += "\n\n"
+	// Help Line
+	sb.WriteString("\n")
+	sb.WriteString(renderHelpLine(m))
+
+	return sb.String()
+}
+
+func renderStatsCard(loading bool, users int32, heroes int32, images int32, storage int64) string {
+	if loading {
+		return cardStyle.Render(
+			loadingStyle.Render("Loading statistics..."),
+		)
 	}
 
-	if m.confirmDelete {
-		s += helpStyle.Render("[y] confirm • [n] cancel • [q] quit")
-	} else if m.menu[m.cursor] == "Users" {
-		s += helpStyle.Render("[↑/↓] users • [←/→] menu • [d] delete • [r] refresh • [q] quit")
-	} else if m.menu[m.cursor] == "Containers" {
-		s += helpStyle.Render("[←/→] menu • [R] restart all • [r] refresh • [q] quit")
-	} else if m.menu[m.cursor] == "Logs" {
-		if m.searchMode {
-			s += helpStyle.Render("Type to search • [enter] apply • [esc] clear")
-		} else if m.logDetail {
-			s += helpStyle.Render("[esc] close • [q] quit")
+	stats := fmt.Sprintf(
+		"%s %d   %s %d   %s %d   %s %s",
+		statLabelStyle.Render("Users:"),
+		users,
+		statLabelStyle.Render("Heroes:"),
+		heroes,
+		statLabelStyle.Render("Images:"),
+		images,
+		statLabelStyle.Render("Storage:"),
+		statValueStyle.Render(formatStorage(storage)),
+	)
+
+	return cardStyle.Render(stats)
+}
+
+func renderMenuBar(menu []string, cursor int) string {
+	var items []string
+	for i, item := range menu {
+		if i == cursor {
+			items = append(items, activeMenuStyle.Render("▸ "+item))
 		} else {
-			s += helpStyle.Render("[↑/↓] logs • [enter] details • [/] search • [r] refresh • [q] quit")
+			items = append(items, menuStyle.Render("  "+item))
 		}
-	} else {
-		s += helpStyle.Render("[←/→] menu • [r] refresh • [q] quit")
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, items...)
+}
+
+func renderUsersSection(m DashboardModel) string {
+	var sb strings.Builder
+
+	sb.WriteString(headerStyle.Render("👤 Users"))
+	sb.WriteString("\n")
+
+	if m.usersLoading {
+		sb.WriteString(loadingStyle.Render("Loading users..."))
+		return sb.String()
 	}
 
-	return s
+	if len(m.users) == 0 {
+		sb.WriteString(infoStyle.Render("No users found."))
+		return sb.String()
+	}
+
+	// Table header
+	header := fmt.Sprintf(
+		"%-36s  %-24s  %-20s  %s",
+		"ID",
+		"EMAIL",
+		"NAME",
+		"CREATED",
+	)
+	sb.WriteString(tableHeaderStyle.Render(header))
+	sb.WriteString("\n")
+
+	// Table rows
+	for i, user := range m.users {
+		line := fmt.Sprintf(
+			"%-36s  %-24s  %-20s  %s",
+			truncate(user.ID, 36),
+			truncate(user.Email, 24),
+			truncate(user.Name, 20),
+			user.CreatedAt.Format("2006-01-02 15:04"),
+		)
+
+		if i == m.userCursor {
+			sb.WriteString(selectedStyle.Render("› " + line))
+		} else {
+			sb.WriteString("  " + line)
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
+func renderContainersSection(m DashboardModel) string {
+	var sb strings.Builder
+
+	sb.WriteString(headerStyle.Render("🐳 Containers"))
+	sb.WriteString("\n")
+
+	if m.containersLoading {
+		sb.WriteString(loadingStyle.Render("Loading containers..."))
+		return sb.String()
+	}
+
+	if len(m.containers) == 0 {
+		sb.WriteString(infoStyle.Render("No containers found."))
+		return sb.String()
+	}
+
+	// Table header
+	header := fmt.Sprintf("%-40s  %s", "NAME", "STATUS")
+	sb.WriteString(tableHeaderStyle.Render(header))
+	sb.WriteString("\n")
+
+	// Table rows
+	for _, container := range m.containers {
+		status := container.Status
+		if strings.Contains(status, "running") {
+			status = statusStyle.Render("●") + " " + status
+		} else if strings.Contains(status, "exited") {
+			status = errorStyle.Render("●") + " " + status
+		} else {
+			status = keyLabelStyle.Render("●") + " " + status
+		}
+
+		line := fmt.Sprintf(
+			"%-40s  %s",
+			truncate(container.Name, 40),
+			status,
+		)
+		sb.WriteString("  " + line)
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
+func renderLogsSection(m DashboardModel) string {
+	var sb strings.Builder
+
+	sb.WriteString(headerStyle.Render("📋 Request Logs"))
+	sb.WriteString("\n")
+
+	if m.logsLoading {
+		sb.WriteString(loadingStyle.Render("Loading logs..."))
+		return sb.String()
+	}
+
+	filtered := filterLogs(m.logs, m.searchQuery)
+	if len(filtered) == 0 {
+		msg := "No logs available."
+		if m.searchQuery != "" {
+			msg = fmt.Sprintf("No logs match: %s", keyStyle.Render(m.searchQuery))
+		}
+		sb.WriteString(infoStyle.Render(msg))
+		return sb.String()
+	}
+
+	// Search indicator
+	if m.searchQuery != "" {
+		sb.WriteString(keyLabelStyle.Render("Search: "))
+		sb.WriteString(keyStyle.Render(m.searchQuery))
+		sb.WriteString("\n")
+	} else if m.searchMode {
+		sb.WriteString(keyLabelStyle.Render("Search: "))
+		sb.WriteString(keyStyle.Render("_"))
+		sb.WriteString("\n")
+	}
+
+	// Table header
+	header := fmt.Sprintf(
+		"%-19s  %-6s  %-3s  %-6s  %-18s  %-15s  %s",
+		"TIMESTAMP",
+		"METHOD",
+		"ST",
+		"DUR",
+		"ERROR",
+		"LOCATION",
+		"PATH",
+	)
+	sb.WriteString(tableHeaderStyle.Render(header))
+	sb.WriteString("\n")
+
+	// Table rows
+	for i, entry := range filtered {
+		var statusIcon string
+		if entry.Status >= 500 {
+			statusIcon = errorStyle.Render("●")
+		} else if entry.Status >= 400 {
+			statusIcon = confirmStyle.Render("●")
+		} else {
+			statusIcon = statusStyle.Render("●")
+		}
+
+		errorText := entry.Error
+		if errorText == "" {
+			errorText = "-"
+		}
+		locationText := entry.Location
+		if locationText == "" {
+			locationText = "-"
+		}
+
+		line := fmt.Sprintf(
+			"%-19s  %-6s  %s %-2d  %-6s  %-18s  %-15s  %s",
+			entry.Timestamp.Format("2006-01-02 15:04:05"),
+			entry.Method,
+			statusIcon,
+			entry.Status,
+			fmt.Sprintf("%dms", entry.DurationMs),
+			truncate(errorText, 18),
+			truncate(locationText, 15),
+			truncate(entry.Path, 30),
+		)
+
+		if i == m.logCursor {
+			sb.WriteString(selectedStyle.Render("› " + line))
+		} else {
+			sb.WriteString("  " + line)
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
+func renderConfirmDialog(user admin.UserSummary) string {
+	var sb strings.Builder
+
+	sb.WriteString("\n")
+	content := fmt.Sprintf(
+		"%s %s\n%s\n%s",
+		confirmStyle.Render("Delete user:"),
+		keyStyle.Render(user.Email),
+		keyLabelStyle.Render("("+user.ID+")"),
+		keyLabelStyle.Render("Files and heroes will also be deleted."),
+	)
+	sb.WriteString(modalStyle.Render(content))
+	sb.WriteString("\n")
+	sb.WriteString(confirmStyle.Render("[y] confirm  [n] cancel"))
+
+	return sb.String()
+}
+
+func renderLogDetailModal(entry admin.LogEntry) string {
+	var sb strings.Builder
+
+	var parts []string
+
+	// Header
+	parts = append(parts, modalTitleStyle.Render("Request Details"))
+	parts = append(parts, "")
+
+	// Status with icon
+	var statusIcon string
+	if entry.Status >= 500 {
+		statusIcon = errorStyle.Render("●")
+	} else if entry.Status >= 400 {
+		statusIcon = confirmStyle.Render("●")
+	} else {
+		statusIcon = statusStyle.Render("●")
+	}
+	parts = append(parts, fmt.Sprintf("%s %s %d", statusIcon, keyLabelStyle.Render("Status:"), entry.Status))
+
+	// Request info
+	parts = append(parts, fmt.Sprintf("%s %s %s",
+		keyLabelStyle.Render("Method:"),
+		keyStyle.Render(entry.Method),
+		keyLabelStyle.Render(entry.Path)))
+
+	// Timing
+	parts = append(parts, fmt.Sprintf("%s %dms at %s",
+		keyLabelStyle.Render("Duration:"),
+		entry.DurationMs,
+		entry.Timestamp.Format("2006-01-02 15:04:05")))
+
+	if entry.Location != "" {
+		parts = append(parts, fmt.Sprintf("%s %s",
+			keyLabelStyle.Render("Location:"),
+			infoStyle.Render(entry.Location)))
+	}
+
+	if entry.Error != "" {
+		parts = append(parts, "")
+		parts = append(parts, errorStyle.Render("Error:"))
+		parts = append(parts, infoStyle.Render(entry.Error))
+	}
+
+	sb.WriteString(modalStyle.Render(strings.Join(parts, "\n")))
+
+	return sb.String()
+}
+
+func renderHelpLine(m DashboardModel) string {
+	if m.confirmDelete {
+		return helpStyle.Render("[y] confirm · [n] cancel · [q] quit")
+	}
+
+	if m.logDetail {
+		return helpStyle.Render("[esc] close · [q] quit")
+	}
+
+	if m.menu[m.cursor] == "Users" {
+		if m.searchMode {
+			return helpStyle.Render("[type] search · [enter] apply · [esc] cancel")
+		}
+		return helpStyle.Render("[↑↓] navigate · [d] delete · [r] refresh · [←→] menu · [q] quit")
+	}
+
+	if m.menu[m.cursor] == "Containers" {
+		return helpStyle.Render("[←→] menu · [R] restart all · [r] refresh · [q] quit")
+	}
+
+	if m.menu[m.cursor] == "Logs" {
+		if m.searchMode {
+			return helpStyle.Render("[type] search · [enter] apply · [esc] cancel")
+		}
+		return helpStyle.Render("[↑↓] logs · [enter] details · [/] search · [r] refresh · [←→] menu · [q] quit")
+	}
+
+	return helpStyle.Render("[←→] menu · [r] refresh · [q] quit")
 }
 
 func formatStorage(bytes int64) string {
