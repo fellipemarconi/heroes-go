@@ -4,6 +4,8 @@ import (
 	"api/internal/pkg/apierror"
 	"api/internal/pkg/ctx"
 	"encoding/json"
+	"log"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 )
@@ -110,4 +112,93 @@ func (h *Handler) ListHeroes(w http.ResponseWriter, r *http.Request) {
 	if err = json.NewEncoder(w).Encode(heroes); err != nil {
 		return
 	}
+}
+
+func (h *Handler) UpdateHeroStatus(w http.ResponseWriter, r *http.Request) {
+	var input UpdateHeroStatusInput
+
+	userId, err := ctx.GetUserIDCtx(r)
+	if err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	if err = json.NewDecoder(r.Body).Decode(&input); err != nil {
+		apierror.Send(w, apierror.ErrInvalidBody)
+		return
+	}
+
+	if input.HeroID == "" || input.IsActive == nil {
+		apierror.Send(w, apierror.ErrInvalidBody)
+		return
+	}
+
+	if err = h.service.UpdateHeroStatus(
+		r.Context(),
+		userId,
+		input.HeroID,
+		*input.IsActive,
+	); err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) UpdateHeroImage(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(
+		w,
+		r.Body,
+		5<<20,
+	)
+
+	err := r.ParseMultipartForm(5 << 20)
+	if err != nil {
+		apierror.Send(w, apierror.ErrInvalidBody)
+		return
+	}
+
+	heroID := r.FormValue("hero_id")
+	if heroID == "" {
+		apierror.Send(w, apierror.ErrInvalidBody)
+		return
+	}
+
+	file, header, err := r.FormFile("image")
+	if err != nil {
+		apierror.Send(w, apierror.ErrInvalidBody)
+		return
+	}
+	defer func(file multipart.File) {
+		err = file.Close()
+		if err != nil {
+			log.Printf("failed to close file: %v", err)
+		}
+	}(file)
+
+	contentType := header.Header.Get("Content-Type")
+
+	userId, err := ctx.GetUserIDCtx(r)
+	if err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	err = h.service.UpdateHeroImage(
+		r.Context(),
+		userId,
+		heroID,
+		&UpdateHeroImageInput{
+			File:        file,
+			FileHeader:  header,
+			ContentType: contentType,
+		},
+	)
+	if err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

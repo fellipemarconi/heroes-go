@@ -65,6 +65,7 @@ var (
 	ErrInvalidFileSize      = errors.New("invalid file size")
 	ErrInvalidFileMimeType  = errors.New("invalid file mime type")
 	ErrInvalidFileExtension = errors.New("invalid file extension")
+	ErrFileNotFound         = errors.New("file not found")
 )
 
 var allowedMimeTypes = map[string]bool{
@@ -103,4 +104,35 @@ func ValidateImageFile(
 	}
 
 	return nil
+}
+
+func DownloadFile(
+	ctx context.Context,
+	path string,
+) (*minio.Object, minio.ObjectInfo, error) {
+	bucket := os.Getenv("MINIO_BUCKET")
+
+	object, err := Client.GetObject(
+		ctx,
+		bucket,
+		path,
+		minio.GetObjectOptions{},
+	)
+	if err != nil {
+		return nil, minio.ObjectInfo{}, err
+	}
+
+	info, err := object.Stat()
+	if err != nil {
+		_ = object.Close()
+
+		errResp := minio.ToErrorResponse(err)
+		if errResp.Code == "NoSuchKey" || errResp.Code == "NoSuchObject" {
+			return nil, minio.ObjectInfo{}, ErrFileNotFound
+		}
+
+		return nil, minio.ObjectInfo{}, err
+	}
+
+	return object, info, nil
 }

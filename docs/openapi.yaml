@@ -1,0 +1,426 @@
+openapi: 3.0.0
+info:
+  title: heroes-collection
+  version: 1.0.0
+paths:
+  /api/hero:
+    post:
+      summary: Create Hero
+      operationId: c_users_aniks_documents_bruno_heroes-go_heroes_create_hero_yml
+      description: ""
+      tags:
+        - Heroes
+      responses:
+        "200":
+          description: ""
+      requestBody:
+        $ref: "#/components/requestBodies/create_hero"
+      security:
+        - create_hero: []
+      servers:
+        - url: http://localhost:3000
+    get:
+      summary: Hero
+      operationId: c_users_aniks_documents_bruno_heroes-go_heroes_hero_yml
+      description: ""
+      tags:
+        - Heroes
+      responses:
+        "200":
+          description: ""
+      parameters:
+        - name: slug
+          in: query
+          description: ""
+          required: true
+          schema:
+            type: string
+          example: super-man
+      security:
+        - hero: []
+      servers:
+        - url: http://localhost:3000
+  /api/heroes:
+    get:
+      summary: Heroes
+      operationId: c_users_aniks_documents_bruno_heroes-go_heroes_heroes_yml
+      description: ""
+      tags:
+        - Heroes
+      responses:
+        "200":
+          description: ""
+      security:
+        - heroes: []
+      servers:
+        - url: http://localhost:3000
+  /api/hero/status:
+    patch:
+      summary: Status
+      operationId: c_users_aniks_documents_bruno_heroes-go_heroes_status_yml
+      description: ""
+      tags:
+        - Heroes
+      responses:
+        "200":
+          description: ""
+      requestBody:
+        $ref: "#/components/requestBodies/status"
+      security:
+        - status: []
+      servers:
+        - url: http://localhost:3000
+  /api/hero/image:
+    post:
+      summary: Image
+      operationId: c_users_aniks_documents_bruno_heroes-go_heroes_image_yml
+      description: ""
+      tags:
+        - Heroes
+      responses:
+        "200":
+          description: ""
+      requestBody:
+        $ref: "#/components/requestBodies/image"
+      security:
+        - image: []
+      servers:
+        - url: http://localhost:3000
+  /api/user:
+    delete:
+      summary: Delete
+      operationId: c_users_aniks_documents_bruno_heroes-go_auth_delete_yml
+      description: ""
+      tags:
+        - Auth
+      responses:
+        "200":
+          description: ""
+      security:
+        - delete: []
+      servers:
+        - url: http://localhost:3000
+    patch:
+      summary: Update
+      operationId: c_users_aniks_documents_bruno_heroes-go_auth_update_yml
+      description: ""
+      tags:
+        - Auth
+      responses:
+        "200":
+          description: ""
+      requestBody:
+        $ref: "#/components/requestBodies/update"
+      security:
+        - update: []
+      servers:
+        - url: http://localhost:3000
+    get:
+      summary: User
+      operationId: c_users_aniks_documents_bruno_heroes-go_auth_user_yml
+      description: ""
+      tags:
+        - Auth
+      responses:
+        "200":
+          description: ""
+      security:
+        - user: []
+      servers:
+        - url: http://localhost:3000
+  /api/auth/forgot-password:
+    post:
+      summary: Forgot Password
+      operationId: c_users_aniks_documents_bruno_heroes-go_auth_forgot_password_yml
+      description: ""
+      tags:
+        - Auth
+      responses:
+        "200":
+          description: ""
+      requestBody:
+        $ref: "#/components/requestBodies/forgot_password"
+      servers:
+        - url: http://localhost:3000
+  /api/user/image:
+    post:
+      summary: Image profile
+      operationId: c_users_aniks_documents_bruno_heroes-go_auth_image_profile_yml
+      description: ""
+      tags:
+        - Auth
+      responses:
+        "200":
+          description: ""
+      requestBody:
+        $ref: "#/components/requestBodies/image_profile"
+      security:
+        - image_profile: []
+      servers:
+        - url: http://localhost:3000
+  /api/auth/login:
+    post:
+      summary: Login
+      operationId: c_users_aniks_documents_bruno_heroes-go_auth_login_yml
+      description: ""
+      tags:
+        - Auth
+      responses:
+        "200":
+          description: ""
+      requestBody:
+        $ref: "#/components/requestBodies/login"
+      servers:
+        - url: http://localhost:3000
+  /api/auth/register:
+    post:
+      summary: Register
+      operationId: c_users_aniks_documents_bruno_heroes-go_auth_register_yml
+      description: ""
+      tags:
+        - Auth
+      responses:
+        "200":
+          description: ""
+      requestBody:
+        $ref: "#/components/requestBodies/register"
+      servers:
+        - url: http://localhost:3000
+  /api/auth/reset-password:
+    post:
+      summary: Reset Password
+      operationId: c_users_aniks_documents_bruno_heroes-go_auth_reset_password_yml
+      description: ""
+      tags:
+        - Auth
+      responses:
+        "200":
+          description: ""
+      requestBody:
+        $ref: "#/components/requestBodies/reset_password"
+      servers:
+        - url: http://localhost:3000
+  /api/file:
+    get:
+      summary: Download Image
+      operationId: c_users_aniks_documents_bruno_heroes-go_file_download_image_yml
+      description: ""
+      tags:
+        - File
+      responses:
+        "200":
+          description: ""
+      parameters:
+        - name: path
+          in: query
+          description: ""
+          required: true
+          schema:
+            type: string
+          example: image/cc90486b-e388-4fec-80bf-99f431b6ab71
+      security:
+        - download_image: []
+      servers:
+        - url: http://localhost:3000
+servers: []
+components:
+  schemas:
+    create_hero:
+      type: object
+      properties:
+        Name:
+          type: string
+        Slug:
+          type: string
+        Powers:
+          type: array
+          items:
+            type: string
+        Universe:
+          type: string
+        Alignment:
+          type: string
+        Description:
+          type: string
+          nullable: true
+      example:
+        Name: super man
+        Slug: super-man
+        Powers:
+          - Strength
+          - Speed
+          - Fly
+        Universe: Dc
+        Alignment: hero
+        Description: null
+    status:
+      type: object
+      properties:
+        HeroID:
+          type: string
+        IsActive:
+          type: boolean
+      example:
+        HeroID: e6a6d874-8cd5-4212-b2eb-9ef8b78a3508
+        IsActive: false
+    image:
+      type: object
+      properties:
+        image:
+          type: array
+          items:
+            type: string
+        hero_id:
+          type: string
+    forgot_password:
+      type: object
+      properties:
+        Email:
+          type: string
+      example:
+        Email: user@gmail.com
+    image_profile:
+      type: object
+      properties:
+        image:
+          type: array
+          items:
+            type: string
+    login:
+      type: object
+      properties:
+        Email:
+          type: string
+        Password:
+          type: string
+      example:
+        Email: user@gmail.com
+        Password: "12345678"
+    register:
+      type: object
+      properties:
+        Email:
+          type: string
+        Name:
+          type: string
+        Password:
+          type: string
+      example:
+        Email: user@gmail.com
+        Name: John Doe
+        Password: "12345678"
+    reset_password:
+      type: object
+      properties:
+        Token:
+          type: string
+        NewPassword:
+          type: string
+      example:
+        Token: 2daff564-d991-48bd-ae12-3e14ea7c5473
+        NewPassword: aaa123456
+    update:
+      type: object
+      properties:
+        OldPassword:
+          type: string
+        NewPassword:
+          type: string
+      example:
+        OldPassword: "12345678"
+        NewPassword: admin123456
+  requestBodies:
+    create_hero:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/create_hero"
+      description: ""
+      required: true
+    status:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/status"
+      description: ""
+      required: true
+    image:
+      content:
+        multipart/form-data:
+          schema:
+            $ref: "#/components/schemas/image"
+      description: ""
+      required: true
+    forgot_password:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/forgot_password"
+      description: ""
+      required: true
+    image_profile:
+      content:
+        multipart/form-data:
+          schema:
+            $ref: "#/components/schemas/image_profile"
+      description: ""
+      required: true
+    login:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/login"
+      description: ""
+      required: true
+    register:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/register"
+      description: ""
+      required: true
+    reset_password:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/reset_password"
+      description: ""
+      required: true
+    update:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/update"
+      description: ""
+      required: true
+  securitySchemes:
+    create_hero:
+      type: http
+      scheme: bearer
+    hero:
+      type: http
+      scheme: bearer
+    heroes:
+      type: http
+      scheme: bearer
+    status:
+      type: http
+      scheme: bearer
+    image:
+      type: http
+      scheme: bearer
+    delete:
+      type: http
+      scheme: bearer
+    image_profile:
+      type: http
+      scheme: bearer
+    update:
+      type: http
+      scheme: bearer
+    user:
+      type: http
+      scheme: bearer
+    download_image:
+      type: http
+      scheme: bearer

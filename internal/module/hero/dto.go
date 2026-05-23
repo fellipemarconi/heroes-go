@@ -1,5 +1,7 @@
 package hero
 
+import "mime/multipart"
+
 type CreateHeroInput struct {
 	Name        string   `validate:"required,min=2,max=100"`
 	Slug        string   `validate:"required,min=2,max=30"`
@@ -26,4 +28,17 @@ type Hero struct {
 	Universe    string   `json:"universe"`
 	Powers      []string `json:"powers"`
 	Description string   `json:"description"`
+	IsActive    bool     `json:"is_active"`
+	Image       string   `json:"image"`
+}
+
+type UpdateHeroStatusInput struct {
+	HeroID   string `validate:"required,uuid4"`
+	IsActive *bool  `validate:"required, boolean"`
+}
+
+type UpdateHeroImageInput struct {
+	File        multipart.File
+	FileHeader  *multipart.FileHeader
+	ContentType string
 }

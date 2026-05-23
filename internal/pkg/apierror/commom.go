@@ -31,4 +31,5 @@ var (
 	ErrHeroNotFound        = New(http.StatusNotFound, "hero not found")
 	ErrMissingSlug         = New(http.StatusBadRequest, "missing slug")
 	ErrHeroSlugAlreadyUsed = New(http.StatusConflict, "hero slug already used")
+	ErrFileNotFound        = New(http.StatusNotFound, "file not found")
 )
