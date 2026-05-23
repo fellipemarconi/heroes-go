@@ -8,11 +8,14 @@ import (
 )
 
 func GetUserIDCtx(r *http.Request) (string, error) {
-	_, claims, _ := jwtauth.FromContext(r.Context())
+	token, claims, err := jwtauth.FromContext(r.Context())
+	if err != nil || token == nil {
+		return "", apierror.ErrInvalidToken
+	}
 
 	id, ok := claims["user_id"].(string)
 	if !ok {
-		return "", apierror.ErrInvalidCredentials
+		return "", apierror.ErrInvalidToken
 	}
 
 	return id, nil

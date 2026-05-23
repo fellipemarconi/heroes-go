@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -79,4 +80,28 @@ func (h *Handler) RestartContainers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) ListLogs(w http.ResponseWriter, r *http.Request) {
+	limit := 200
+	if value := r.URL.Query().Get("limit"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed <= 0 {
+			apierror.Send(w, apierror.ErrInvalidQuery)
+			return
+		}
+		limit = parsed
+	}
+
+	logs, err := h.service.ListLogs(r.Context(), limit)
+	if err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(logs); err != nil {
+		log.Printf("failed to encode logs response: %v", err)
+		return
+	}
 }

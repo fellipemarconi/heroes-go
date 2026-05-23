@@ -4,6 +4,7 @@ import (
 	"api/internal/admin/client"
 	"api/internal/module/admin"
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -32,6 +33,11 @@ var (
 			Foreground(lipgloss.Color("214")).
 			Bold(true)
 
+	modalStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("241")).
+			Padding(1, 2)
+
 	errorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196"))
 )
@@ -51,6 +57,13 @@ type DashboardModel struct {
 
 	containers        []admin.ContainerSummary
 	containersLoading bool
+
+	logs        []admin.LogEntry
+	logsLoading bool
+	logCursor   int
+	logDetail   bool
+	searchMode  bool
+	searchQuery string
 
 	confirmDelete bool
 	confirmUser   admin.UserSummary
@@ -72,11 +85,12 @@ func NewDashboard() DashboardModel {
 		statsLoading:      true,
 		usersLoading:      true,
 		containersLoading: true,
+		logsLoading:       true,
 	}
 }
 
 func (m DashboardModel) Init() tea.Cmd {
-	return tea.Batch(fetchStatsCmd(), fetchUsersCmd(), fetchContainersCmd())
+	return tea.Batch(fetchStatsCmd(), fetchUsersCmd(), fetchContainersCmd(), fetchLogsCmd())
 }
 
 type statsMsg struct {
@@ -116,6 +130,16 @@ type restartContainersMsg struct{}
 type restartContainersErrMsg struct {
 	err error
 }
+
+type logsMsg struct {
+	logs []admin.LogEntry
+}
+
+type logsErrMsg struct {
+	err error
+}
+
+const logsLimit = 200
 
 func fetchStatsCmd() tea.Cmd {
 	return func() tea.Msg {
@@ -162,6 +186,16 @@ func restartContainersCmd() tea.Cmd {
 			return restartContainersErrMsg{err: err}
 		}
 		return restartContainersMsg{}
+	}
+}
+
+func fetchLogsCmd() tea.Cmd {
+	return func() tea.Msg {
+		logs, err := client.GetLogs(logsLimit)
+		if err != nil {
+			return logsErrMsg{err: err}
+		}
+		return logsMsg{logs: logs}
 	}
 }
 
@@ -229,6 +263,18 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg.err.Error()
 		return m, nil
 
+	case logsMsg:
+		m.logs = msg.logs
+		m.logsLoading = false
+		m.err = ""
+		m.logCursor = clampCursor(m.logCursor, len(filterLogs(m.logs, m.searchQuery)))
+		return m, nil
+
+	case logsErrMsg:
+		m.logsLoading = false
+		m.err = msg.err.Error()
+		return m, nil
+
 	case tea.KeyMsg:
 		if m.confirmDelete {
 			switch msg.String() {
@@ -240,6 +286,42 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, deleteUserCmd(m.confirmUser.ID)
 			case "n", "esc":
 				m.confirmDelete = false
+				return m, nil
+			case "q", "ctrl+c":
+				return m, tea.Quit
+			}
+			return m, nil
+		}
+
+		if m.searchMode {
+			switch msg.Type {
+			case tea.KeyEnter:
+				m.searchMode = false
+				m.logCursor = clampCursor(m.logCursor, len(filterLogs(m.logs, m.searchQuery)))
+				return m, nil
+			case tea.KeyEsc:
+				m.searchMode = false
+				m.searchQuery = ""
+				m.logCursor = 0
+				return m, nil
+			case tea.KeyBackspace, tea.KeyDelete:
+				if len(m.searchQuery) > 0 {
+					m.searchQuery = m.searchQuery[:len(m.searchQuery)-1]
+					m.logCursor = clampCursor(m.logCursor, len(filterLogs(m.logs, m.searchQuery)))
+				}
+				return m, nil
+			case tea.KeyRunes:
+				m.searchQuery += string(msg.Runes)
+				m.logCursor = clampCursor(m.logCursor, len(filterLogs(m.logs, m.searchQuery)))
+				return m, nil
+			}
+			return m, nil
+		}
+
+		if m.logDetail {
+			switch msg.String() {
+			case "esc":
+				m.logDetail = false
 				return m, nil
 			case "q", "ctrl+c":
 				return m, tea.Quit
@@ -267,6 +349,10 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.userCursor > 0 {
 					m.userCursor--
 				}
+			} else if m.menu[m.cursor] == "Logs" {
+				if m.logCursor > 0 {
+					m.logCursor--
+				}
 			} else if m.cursor > 0 {
 				m.cursor--
 			}
@@ -275,6 +361,10 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.menu[m.cursor] == "Users" {
 				if m.userCursor < len(m.users)-1 {
 					m.userCursor++
+				}
+			} else if m.menu[m.cursor] == "Logs" {
+				if m.logCursor < len(filterLogs(m.logs, m.searchQuery))-1 {
+					m.logCursor++
 				}
 			} else if m.cursor < len(m.menu)-1 {
 				m.cursor++
@@ -295,7 +385,8 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.usersLoading = true
 			m.statsLoading = true
 			m.containersLoading = true
-			return m, tea.Batch(fetchUsersCmd(), fetchStatsCmd(), fetchContainersCmd())
+			m.logsLoading = true
+			return m, tea.Batch(fetchUsersCmd(), fetchStatsCmd(), fetchContainersCmd(), fetchLogsCmd())
 
 		case "R":
 			if m.menu[m.cursor] == "Containers" {
@@ -303,6 +394,23 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.err = ""
 				m.containersLoading = true
 				return m, restartContainersCmd()
+			}
+
+		case "/":
+			if m.menu[m.cursor] == "Logs" {
+				m.searchMode = true
+				return m, nil
+			}
+
+		case "enter":
+			if m.menu[m.cursor] == "Logs" {
+				if _, ok := selectedLog(m.logs, m.searchQuery, m.logCursor); ok {
+					m.confirmDelete = false
+					m.logDetail = true
+					m.status = ""
+					m.err = ""
+					return m, nil
+				}
 			}
 		}
 	}
@@ -347,6 +455,9 @@ func (m DashboardModel) View() string {
 	} else if m.menu[m.cursor] == "Containers" {
 		s += renderContainersList(m.containers, m.containersLoading)
 		s += "\n\n"
+	} else if m.menu[m.cursor] == "Logs" {
+		s += renderLogsList(m.logs, m.logCursor, m.logsLoading, m.searchQuery, m.searchMode)
+		s += "\n\n"
 	} else {
 		s += helpStyle.Render("Section not available yet.")
 		s += "\n\n"
@@ -361,6 +472,13 @@ func (m DashboardModel) View() string {
 			),
 		)
 		s += "\n\n"
+	}
+
+	if m.logDetail {
+		if logEntry, ok := selectedLog(m.logs, m.searchQuery, m.logCursor); ok {
+			s += modalStyle.Render(renderLogDetail(logEntry))
+			s += "\n\n"
+		}
 	}
 
 	if m.status != "" {
@@ -379,6 +497,14 @@ func (m DashboardModel) View() string {
 		s += helpStyle.Render("[↑/↓] users • [←/→] menu • [d] delete • [r] refresh • [q] quit")
 	} else if m.menu[m.cursor] == "Containers" {
 		s += helpStyle.Render("[←/→] menu • [R] restart all • [r] refresh • [q] quit")
+	} else if m.menu[m.cursor] == "Logs" {
+		if m.searchMode {
+			s += helpStyle.Render("Type to search • [enter] apply • [esc] clear")
+		} else if m.logDetail {
+			s += helpStyle.Render("[esc] close • [q] quit")
+		} else {
+			s += helpStyle.Render("[↑/↓] logs • [enter] details • [/] search • [r] refresh • [q] quit")
+		}
 	} else {
 		s += helpStyle.Render("[←/→] menu • [r] refresh • [q] quit")
 	}
@@ -454,6 +580,139 @@ func renderContainersList(containers []admin.ContainerSummary, loading bool) str
 	}
 
 	return output
+}
+
+func renderLogsList(logs []admin.LogEntry, cursor int, loading bool, query string, searchMode bool) string {
+	if loading {
+		return "Loading logs..."
+	}
+
+	filtered := filterLogs(logs, query)
+	if len(filtered) == 0 {
+		if query != "" {
+			return fmt.Sprintf("Search: %s\nNo logs match the current filter.", query)
+		}
+		return "No logs available."
+	}
+
+	searchLine := "Search: /"
+	if query != "" || searchMode {
+		searchLine = fmt.Sprintf("Search: %s", query)
+	}
+
+	header := fmt.Sprintf(
+		"%-19s  %-6s  %-3s  %-7s  %-20s  %-18s  %s",
+		"Timestamp",
+		"Method",
+		"St",
+		"Dur",
+		"Error",
+		"Location",
+		"Path",
+	)
+
+	output := searchLine + "\n" + header + "\n"
+
+	for i, entry := range filtered {
+		errorText := entry.Error
+		if errorText == "" {
+			errorText = "-"
+		}
+		locationText := entry.Location
+		if locationText == "" {
+			locationText = "-"
+		}
+
+		line := fmt.Sprintf(
+			"%-19s  %-6s  %-3d  %-7s  %-20s  %-18s  %s",
+			entry.Timestamp.Format("2006-01-02 15:04:05"),
+			entry.Method,
+			entry.Status,
+			fmt.Sprintf("%dms", entry.DurationMs),
+			truncate(errorText, 20),
+			truncate(locationText, 18),
+			truncate(entry.Path, 40),
+		)
+
+		if i == cursor {
+			output += selectedStyle.Render("> "+line) + "\n"
+		} else {
+			output += "  " + line + "\n"
+		}
+	}
+
+	return output
+}
+
+func renderLogDetail(entry admin.LogEntry) string {
+	errorText := entry.Error
+	if errorText == "" {
+		errorText = "-"
+	}
+	locationText := entry.Location
+	if locationText == "" {
+		locationText = "-"
+	}
+
+	return fmt.Sprintf(
+		"Timestamp: %s\nMethod: %s\nStatus: %d\nDuration: %dms\nPath: %s\nError: %s\nLocation: %s",
+		entry.Timestamp.Format("2006-01-02 15:04:05"),
+		entry.Method,
+		entry.Status,
+		entry.DurationMs,
+		entry.Path,
+		errorText,
+		locationText,
+	)
+}
+
+func filterLogs(logs []admin.LogEntry, query string) []admin.LogEntry {
+	if query == "" {
+		return logs
+	}
+
+	q := strings.ToLower(strings.TrimSpace(query))
+	if q == "" {
+		return logs
+	}
+
+	filtered := make([]admin.LogEntry, 0, len(logs))
+	for _, entry := range logs {
+		if strings.Contains(strings.ToLower(entry.Method), q) ||
+			strings.Contains(strings.ToLower(entry.Path), q) ||
+			strings.Contains(strings.ToLower(entry.Error), q) ||
+			strings.Contains(strings.ToLower(entry.Location), q) ||
+			strings.Contains(strings.ToLower(fmt.Sprintf("%d", entry.Status)), q) {
+			filtered = append(filtered, entry)
+		}
+	}
+
+	return filtered
+}
+
+func selectedLog(logs []admin.LogEntry, query string, cursor int) (admin.LogEntry, bool) {
+	filtered := filterLogs(logs, query)
+	if cursor < 0 || cursor >= len(filtered) {
+		return admin.LogEntry{}, false
+	}
+
+	return filtered[cursor], true
+}
+
+func clampCursor(cursor int, length int) int {
+	if length <= 0 {
+		return 0
+	}
+
+	if cursor < 0 {
+		return 0
+	}
+
+	if cursor >= length {
+		return length - 1
+	}
+
+	return cursor
 }
 
 func truncate(value string, max int) string {

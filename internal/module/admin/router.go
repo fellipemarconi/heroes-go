@@ -25,5 +25,6 @@ func RoutesAdmin(db *pgxpool.Pool, queries *sqlc.Queries, r chi.Router) {
 		r.Delete("/users/{id}", handler.DeleteUser)
 		r.Get("/containers", handler.ListContainers)
 		r.Post("/containers/restart", handler.RestartContainers)
+		r.Get("/logs", handler.ListLogs)
 	})
 }

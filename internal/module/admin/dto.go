@@ -20,3 +20,13 @@ type ContainerSummary struct {
 	Name   string `json:"name"`
 	Status string `json:"status"`
 }
+
+type LogEntry struct {
+	Timestamp  time.Time `json:"timestamp"`
+	Method     string    `json:"method"`
+	Path       string    `json:"path"`
+	Status     int       `json:"status"`
+	DurationMs int64     `json:"duration_ms"`
+	Error      string    `json:"error,omitempty"`
+	Location   string    `json:"location,omitempty"`
+}

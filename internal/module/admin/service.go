@@ -3,6 +3,7 @@ package admin
 import (
 	"api/internal/infra/containers"
 	sqlc "api/internal/infra/db/sqlc"
+	"api/internal/infra/logs"
 	"api/internal/infra/storage"
 	"api/internal/pkg/apierror"
 	"api/internal/pkg/types"
@@ -106,4 +107,22 @@ func (s *Service) ListContainers(ctx context.Context) ([]ContainerSummary, error
 
 func (s *Service) RestartContainers(ctx context.Context) error {
 	return containers.RestartAll(ctx)
+}
+
+func (s *Service) ListLogs(ctx context.Context, limit int) ([]LogEntry, error) {
+	entries := logs.List(limit)
+	items := make([]LogEntry, 0, len(entries))
+	for _, entry := range entries {
+		items = append(items, LogEntry{
+			Timestamp:  entry.Timestamp,
+			Method:     entry.Method,
+			Path:       entry.Path,
+			Status:     entry.Status,
+			DurationMs: entry.DurationMs,
+			Error:      entry.Error,
+			Location:   entry.Location,
+		})
+	}
+
+	return items, nil
 }

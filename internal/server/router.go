@@ -3,6 +3,7 @@ package server
 import (
 	"api/internal/infra/auth"
 	sqlc "api/internal/infra/db/sqlc"
+	applogs "api/internal/infra/logs"
 	"api/internal/module/admin"
 	"api/internal/module/file"
 	"api/internal/module/hero"
@@ -18,7 +19,7 @@ import (
 
 func NewRouter(db *pgxpool.Pool, queries *sqlc.Queries) chi.Router {
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
+	r.Use(applogs.RequestLogger)
 	r.Use(middleware.Recoverer)
 
 	// Public routes
