@@ -22,3 +22,8 @@ WHERE path = $1 LIMIT 1;
 -- name: DeleteFileByPath :exec
 DELETE FROM files
 WHERE path = $1 AND user_id = $2;
+
+-- name: ListFilePathsByUser :many
+SELECT path
+FROM files
+WHERE user_id = $1;

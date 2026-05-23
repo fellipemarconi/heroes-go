@@ -7,7 +7,22 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const adminDeleteUser = `-- name: AdminDeleteUser :execrows
+DELETE FROM users
+WHERE id = $1
+`
+
+func (q *Queries) AdminDeleteUser(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, adminDeleteUser, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
 
 const getStats = `-- name: GetStats :one
 SELECT
@@ -37,4 +52,42 @@ func (q *Queries) GetStats(ctx context.Context) (GetStatsRow, error) {
 		&i.StorageBytes,
 	)
 	return i, err
+}
+
+const listAdminUsers = `-- name: ListAdminUsers :many
+SELECT id, email, name, created_at
+FROM users
+ORDER BY created_at DESC
+`
+
+type ListAdminUsersRow struct {
+	ID        pgtype.UUID
+	Email     string
+	Name      string
+	CreatedAt pgtype.Timestamp
+}
+
+func (q *Queries) ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, error) {
+	rows, err := q.db.Query(ctx, listAdminUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAdminUsersRow
+	for rows.Next() {
+		var i ListAdminUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

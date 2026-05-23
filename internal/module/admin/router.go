@@ -17,5 +17,11 @@ func RoutesAdmin(db *pgxpool.Pool, queries *sqlc.Queries, r chi.Router) {
 		log.Fatalf("admin auth key error: %v", err)
 	}
 
-	r.With(requireAdminSignature(publicKey)).Get("/api/admin/stats", handler.GetStats)
+	r.Route("/api/admin", func(r chi.Router) {
+		r.Use(requireAdminSignature(publicKey))
+
+		r.Get("/stats", handler.GetStats)
+		r.Get("/users", handler.ListUsers)
+		r.Delete("/users/{id}", handler.DeleteUser)
+	})
 }

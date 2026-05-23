@@ -87,3 +87,29 @@ func (q *Queries) GetFileByPath(ctx context.Context, path string) (GetFileByPath
 	)
 	return i, err
 }
+
+const listFilePathsByUser = `-- name: ListFilePathsByUser :many
+SELECT path
+FROM files
+WHERE user_id = $1
+`
+
+func (q *Queries) ListFilePathsByUser(ctx context.Context, userID pgtype.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, listFilePathsByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, err
+		}
+		items = append(items, path)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

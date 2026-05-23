@@ -27,6 +27,7 @@ const (
 	adminSignatureHeader = "X-Admin-Signature"
 	adminTimestampHeader = "X-Admin-Timestamp"
 	adminStatsPath       = "/api/admin/stats"
+	adminUsersPath       = "/api/admin/users"
 )
 
 var (
@@ -88,6 +89,111 @@ func GetStats() (*admin.Stats, error) {
 	}
 
 	return &stats, nil
+}
+
+func GetUsers() ([]admin.UserSummary, error) {
+	_ = godotenv.Load()
+
+	baseURL := strings.TrimRight(os.Getenv("ADMIN_API_URL"), "/")
+	if baseURL == "" {
+		return nil, fmt.Errorf("ADMIN_API_URL not set")
+	}
+
+	timestamp, signature, err := signAdminRequest(http.MethodGet, adminUsersPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(
+		http.MethodGet,
+		baseURL+adminUsersPath,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set(adminTimestampHeader, timestamp)
+	req.Header.Set(adminSignatureHeader, signature)
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		if len(body) > 0 {
+			return nil, fmt.Errorf(
+				"users request failed with status %d: %s",
+				resp.StatusCode,
+				strings.TrimSpace(string(body)),
+			)
+		}
+		return nil, fmt.Errorf(
+			"users request failed with status %d",
+			resp.StatusCode,
+		)
+	}
+
+	var users []admin.UserSummary
+	if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+func DeleteUser(userID string) error {
+	_ = godotenv.Load()
+
+	baseURL := strings.TrimRight(os.Getenv("ADMIN_API_URL"), "/")
+	if baseURL == "" {
+		return fmt.Errorf("ADMIN_API_URL not set")
+	}
+
+	path := fmt.Sprintf("%s/%s", adminUsersPath, userID)
+	timestamp, signature, err := signAdminRequest(http.MethodDelete, path)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(
+		http.MethodDelete,
+		baseURL+path,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set(adminTimestampHeader, timestamp)
+	req.Header.Set(adminSignatureHeader, signature)
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(resp.Body)
+		if len(body) > 0 {
+			return fmt.Errorf(
+				"delete user failed with status %d: %s",
+				resp.StatusCode,
+				strings.TrimSpace(string(body)),
+			)
+		}
+		return fmt.Errorf(
+			"delete user failed with status %d",
+			resp.StatusCode,
+		)
+	}
+
+	return nil
 }
 
 func signAdminRequest(method string, path string) (string, string, error) {

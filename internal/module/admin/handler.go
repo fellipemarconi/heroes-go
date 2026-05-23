@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
@@ -25,4 +27,33 @@ func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 		log.Printf("failed to encode stats response: %v", err)
 		return
 	}
+}
+
+func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.service.ListUsers(r.Context())
+	if err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(users); err != nil {
+		log.Printf("failed to encode users response: %v", err)
+		return
+	}
+}
+
+func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	userID := chi.URLParam(r, "id")
+	if userID == "" {
+		apierror.Send(w, apierror.ErrInvalidID)
+		return
+	}
+
+	if err := h.service.DeleteUser(r.Context(), userID); err != nil {
+		apierror.Send(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
