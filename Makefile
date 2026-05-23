@@ -7,10 +7,18 @@ NAME ?=
 
 .PHONY: service-start service-stop up down restart logs ps \
         migrate-up migrate-down migrate-force migrate-version migrate-create \
-        db-reset
+        db-reset admin-keys
 
 run:
 	air
+
+# --------------------
+# Admin keys
+# --------------------
+admin-keys:
+	mkdir -p .keys
+	openssl genpkey -algorithm ed25519 -out .keys/admin_private.pem
+	openssl pkey -in .keys/admin_private.pem -pubout -out .keys/admin_public.pem
 # --------------------
 # Docker service
 # --------------------

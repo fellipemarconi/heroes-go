@@ -3,6 +3,8 @@ package server
 import (
 	"api/internal/infra/auth"
 	sqlc "api/internal/infra/db/sqlc"
+	applogs "api/internal/infra/logs"
+	"api/internal/module/admin"
 	"api/internal/module/file"
 	"api/internal/module/hero"
 	"api/internal/module/user"
@@ -17,12 +19,13 @@ import (
 
 func NewRouter(db *pgxpool.Pool, queries *sqlc.Queries) chi.Router {
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
+	r.Use(applogs.RequestLogger)
 	r.Use(middleware.Recoverer)
 
 	// Public routes
 	r.Group(func(r chi.Router) {
 		user.RoutesAuth(db, queries, r)
+		admin.RoutesAdmin(db, queries, r) // Admin routes with signature-based auth
 
 		setupDocsRoutes(r)
 	})
